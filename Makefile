@@ -1,4 +1,4 @@
 
 filelist:
-	./.scripts/filelist.py | sort > .meta/filelist.txt
+	./.scripts/filelist.py | sort > meta/filelist.txt
 
