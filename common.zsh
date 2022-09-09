@@ -4,12 +4,6 @@ autoload -U colors && colors  # $fg and $bg
 
 setopt EXTENDED_GLOB
 
-source /cad/gnu/modules/modules-tcl/init/zsh
-module load common_setup
-module use /cad/gnu/modules/modulefiles
-module use /cad/gnu/modules/modulefiles2.0
-module load gnutools/grid-engine
-
 
 #
 # Helper for checking the argments of a function.
