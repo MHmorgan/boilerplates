@@ -1,6 +1,6 @@
-#!/usr/bin/env perl5.16.3
+#!/usr/bin/env perl5.30
 
-use v5.16.3;
+use v5.30.0;
 use utf8;
 use warnings;
 use open qw(:std :utf8);
@@ -9,7 +9,7 @@ use Getopt::Long;
 use Pod::Usage;
 
 BEGIN {
-    push @INC, "/pri/mahi/lib";
+    push @INC, "$ENV{HOME}/lib";
 }
 
 use common;
