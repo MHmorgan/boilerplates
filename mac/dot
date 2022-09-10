@@ -1,0 +1,422 @@
+#!/usr/bin/env perl5.30
+#  ____        _    __ _ _           
+# |  _ \  ___ | |_ / _(_) | ___  ___ 
+# | | | |/ _ \| __| |_| | |/ _ \/ __|
+# | |_| | (_) | |_|  _| | |  __/\__ \
+# |____/ \___/ \__|_| |_|_|\___||___/
+#
+# Dotfiles and general mac terminal environment
+# setup manager.
+#
+# Dotfiles
+# ========
+#
+# The dotfiles are installed in the HOME directory using a
+# bare git repository.
+#
+# Github repo: mhmorgan/dotfiles-mac
+#
+#
+# Terminal Environment
+# ====================
+#
+# This script helps with setup of the terminal environment,
+# checking the status of the environment, and providing help
+# information about the structure the environment.
+#
+# The DIRECTORIES hash defines all required directories
+# along with a short description of their use.
+#
+# Git Repos
+# ---------
+#
+# All git repositories for my projects are expected to
+# be located in:
+#
+# 	$HOME/Documents
+
+
+use 5.30.0;
+use utf8;
+use warnings;
+use open qw(:std :utf8);
+use strict;
+
+use Getopt::Long;
+use Pod::Usage;
+use Term::ANSIColor qw(:constants);
+use Term::ReadLine;
+
+my $HOME        = $ENV{'HOME'};
+
+my $LOG_DIR     = "$HOME/.dot-logs";
+my $LOG_FNAME   = "$LOG_DIR/dot.log";
+my $CONFIG_FILE = "$HOME/.dot.config";
+
+mkdir $LOG_DIR, 0755 unless -d $LOG_DIR;
+
+my $LOGFILES_REPO    = 'mhmorgan/dotfiles';
+my $BOILERPLATES_URL = 'https://mhmorgan.github.io/boilerplates';
+my $BP_FILES_URL     = $BOILERPLATES_URL . '/meta/filelist.txt';
+my $DOT_SCRIPT_URL   = $BOILERPLATES_URL . '/mac/dot';
+
+
+#
+# All directories required by the script, with a short description.
+#
+my %DIRECTORIES = (
+	"$HOME/bin" =>
+		'Personal scripts and binaries',
+	"$HOME/lib" =>
+		'Personal libraries',
+);
+
+
+#
+# Applications that should be installed on the system
+# with Homebrew.
+#
+my @HOMEBREW_APPS = qw(
+	python@3.10
+	rust
+	starship
+	neovim
+	thefuck
+	fortune
+	neofetch
+	cowsay
+	tmux
+	lazygit
+	pandoc
+	gcc
+	zsh-autosuggestions
+	ipython
+	tag
+	java
+	kotlin
+	mhmorgan/commode
+	mhmorgan/selector
+);
+
+
+#
+# A map of all valid config keys and a getter for their
+# respective default values.
+#
+my %CONFIG_VALUES = (
+	IS_SUDO => sub {
+		return confirm('Do you have sudo privileges?');
+	},
+	USE_GH  => sub {
+		return confirm('Should GitHub CLI be used for the dotfiles repo?');
+	},
+);
+
+
+################################################################################
+# Utils
+#{{{
+
+
+# cmd_exists CMD → BOOL
+#
+# Check if the given shell command exists.
+#
+sub cmd_exists {
+    my $cmd = shift;
+    my $res = system "which $cmd &>/dev/null";
+    $res == 0
+}
+
+
+# get_env NAME → STR
+#
+# Get an environment variable.
+#
+# If the variable doesn't exist it dies, unless a default value is given.
+#
+sub get_env {
+    my $name = shift || die 'missing variable name. Stopping';
+    my $val = $ENV{$name} || shift;
+    $val or die "environment variable '$name' not found ✗\n";
+    return $val;
+}
+
+
+# input PROMPT → STR
+#
+# Ask the user for a single line input with the PROMPT text.
+#
+sub input {
+    my $prompt = shift || die 'missing prompt. Stopping';
+    print italic("$prompt ");
+    chomp(my $in = <STDIN>);
+    $in
+}
+
+
+# confirm PROMPT → BOOL
+#
+# Ask the user to confirm the PROMPT question. " (Y/n)" is appended to the text.
+#
+sub confirm {
+    my $prompt = shift || die 'missing prompt. Stopping';
+    my $line = input($prompt . " (Y/n)");
+	$line =~ /n(o|ei?)?/i ? 0 : 1
+}
+
+
+sub black     { BLACK     . "@_" . RESET }
+sub red       { RED       . "@_" . RESET }
+sub green     { GREEN     . "@_" . RESET }
+sub yellow    { YELLOW    . "@_" . RESET }
+sub blue      { BLUE      . "@_" . RESET }
+sub magenta   { MAGENTA   . "@_" . RESET }
+sub cyan      { CYAN      . "@_" . RESET }
+sub white     { WHITE     . "@_" . RESET }
+sub bold      { BOLD      . "@_" . RESET }
+sub faint     { FAINT     . "@_" . RESET }
+sub italic    { ITALIC    . "@_" . RESET }
+sub underline { UNDERLINE . "@_" . RESET }
+
+sub echo  { print STDOUT "@_\n"; }
+sub eecho { print STDERR "@_\n"; }
+
+sub vecho {
+	our $VERBOSE;
+	echo @_ if $VERBOSE;
+}
+
+sub err  { eecho red "[!!] @_"; }
+sub info { echo "[*] @_"; }
+sub emph { echo "[↑] @_"; }
+sub good { echo green "[✓] @_"; }
+sub bad  { echo red "[✗] @_"; }
+
+
+# affirmative
+#
+# Print a random affirmatie word to inspire the user. Just for fun ☆
+#
+sub affirmative {
+    my @words = (
+		"Amazing", "Awesome", "Beautiful", "Brilliant", "Cool", "Delightful",
+        "Exquisite", "Extraordinary", "Fabulous", "Fantastic", "Glorious",
+        "Good", "Gracious", "Jazzed", "Marvelous", "Nice", "Right",
+        "Sensational", "Sweet", "Terrific", "Unique ",
+    );
+    my $word = $words[rand @words];
+    echo "$word ✓";
+}
+
+
+# header STR...
+# 
+# Print a header text with border with bold formatting.
+# The formatting is removed if STDOUT isn't a terminal.
+# 
+sub header {
+    my $txt = "@_";
+    my $border = '=' x (length $txt);
+    print BOLD if -t STDOUT;
+    echo "\n$txt\n$border\n";
+    print RESET if -t STDOUT;
+}
+
+
+$SIG{__DIE__} = sub {
+    print STDERR RED if -t STDERR;
+    print STDERR "[!!] @_";
+    print STDERR RESET if -t STDERR;
+    exit 1
+};
+
+
+$SIG{__WARN__} = sub { 
+    print STDERR YELLOW if -t STDERR;
+    print STDERR "[!] @_";
+    print STDERR RESET if -t STDERR;
+};
+
+
+sub run {
+	my $name = shift || die 'missing name. Stopping';
+	my $cmd  = shift || die 'missing command. Stopping';
+
+	my $log_name = lc($name =~ s/[ \/]/_/rg);
+	my $run_log = "$LOG_DIR/$log_name.log";
+
+	vecho "Run: $cmd";
+	vecho "Log: $run_log";
+	system($cmd . " 2>&1 | tee $run_log")
+		or die "$name failed.\n";
+}
+#}}}
+
+
+################################################################################
+# Config
+#
+# Stored configuration for dotfiles and environment setup.
+#
+# Content:
+# 	IS_SUDO - True if the user has sudo privileges.
+# 	USE_GH - True if GitHub CLI is OK to use.
+#
+#{{{
+
+dbmopen(my %CONFIG, $CONFIG_FILE, 0644);
+
+
+# config KEY -> VAL
+#
+# Get the config value associated with the given KEY.
+#
+sub config {
+	my $key = shift || die 'missing key. Stopping';
+	exists $CONFIG_VALUES{$key}
+		or die "$key not a valid config key.\n";
+	defined $CONFIG{$key}
+		or $CONFIG{$key} = $CONFIG_VALUES{$key}();
+	return $CONFIG{$key};
+}
+#}}}
+
+
+################################################################################
+# Install
+#{{{
+
+# Install the dotfiles and setup the terminal environment.
+#
+sub install {
+	chdir $HOME or die $!;
+
+	# - Install oh-my-zsh
+	# - Install homebrew either as sudo-user or not.
+	# - Add my personal tap to homebrew
+	# - Install brew apps.
+	# - Clone dotfiles bare repo.
+	# - Install (checkout & setup) the repo.
+	# - Install Vundle for vim
+	# - Install/Download Dracula
+
+	#1 Setup directory structure.
+	make_directories();
+
+	#2 Install the dot script in ~/bin.
+	#3 Install oh-my-zsh.
+	install_oh_my_zsh();
+	confirm('Continue installation?') or return;
+
+	#4 Install brew.
+	#5 Install brew applications.
+	#6 Install dotfile repo (gh or git).
+	#7 Clone/install dracula theme.
+	#8 Download & install FiraCode nerd font
+}
+
+
+#
+# Install Oh-my-zsh on the system, unless it's already installed.
+#
+sub install_oh_my_zsh {
+	cmd_exists 'git';
+
+	my $dir = "$HOME/.oh-my-zsh";
+	my $cmd = 'sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"';
+
+	header "Oh-my-zsh";
+	run("Oh-my-zsh Installation", $cmd) unless -d $dir;
+	good "Already installed!" if -d $dir;
+}
+
+
+#
+# Make all required directories. The directories are defined
+# in th DIRECTORIES hash.
+#
+sub make_directories {
+	header "Directories";
+
+	for (keys %DIRECTORIES) {
+		if ( -d ) {
+			good "$_ already exists!";
+		} else {
+			info "Making directory '$_'";
+			mkdir $_, 0755 or die $!;
+		}
+	}
+}
+#}}}
+
+
+################################################################################
+# Homebrew
+
+
+################################################################################
+# Doctor
+#{{{
+
+# Sanity checks for the dotfiles and terminal environment.
+sub doctor {
+	header "External resources";
+
+	info "Checking $DOT_SCRIPT_URL";
+	if (url_not_found($DOT_SCRIPT_URL)) {
+		bad "Dot script not found.";
+	} else {
+		good "Dot script found.";
+	}
+}
+
+
+sub url_not_found {
+	my $url = shift || die 'missing url. Stopping';
+	$_ = qx{ curl -sI $url | head -n1 };
+	chomp;
+	say;
+	/HTTP.. 404/ ? 1 : 0
+}
+#}}}
+
+
+################################################################################
+# Main
+#{{{
+
+my $MAN = 0;
+my $HELP = 0;
+my $VERBOSE = 0;
+
+GetOptions(
+	'help|h' => \$HELP,
+	'verbose|v' => \$VERBOSE,
+	'man' => \$MAN
+) or pod2usage(2);
+
+pod2usage( -exitval  => 0,
+           -verbose  => 2) if $MAN;
+pod2usage( -verbose  => 99,
+           -sections => "SYNOPSIS|Commands|OPTIONS")
+if $HELP || !(scalar @ARGV);
+
+sub main {
+    my $cmd = shift;
+    my $args = join '", "', @_;
+    eval "$cmd(\"$args\")";
+}
+
+main(@ARGV);
+#}}}
+
+__END__
+
+################################################################################
+# Documentation
+#{{{
+
+# TODO
+
+#}}}
