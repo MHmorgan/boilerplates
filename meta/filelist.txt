@@ -1,5 +1,6 @@
 common.pl
 common.zsh
+mac/dot
 script.pl
 script.py
 script.zsh
