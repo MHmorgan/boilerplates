@@ -59,6 +59,7 @@ my $LOGFILES_REPO    = 'mhmorgan/dotfiles';
 my $BOILERPLATES_URL = 'https://mhmorgan.github.io/boilerplates';
 my $BP_FILES_URL     = $BOILERPLATES_URL . '/meta/filelist.txt';
 my $DOT_SCRIPT_URL   = $BOILERPLATES_URL . '/mac/dot';
+my $SKAP_SCRIPT_URL  = $BOILERPLATES_URL . '/scripts/skap.py';
 
 
 #
@@ -69,6 +70,26 @@ my %DIRECTORIES = (
 		'Personal scripts and binaries',
 	"$HOME/lib" =>
 		'Personal libraries',
+);
+
+
+#
+# Mapping of name → url for scripts which should be
+# downloaded and placed in the ~/bin directory.
+#
+my %SCRIPTS = (
+	'dot' => $BOILERPLATES_URL . '/mac/dot',
+	'skap' => $BOILERPLATES_URL . '/scripts/skap.py',
+);
+
+
+#
+# Mapping of name → url for library files which should be
+# downloaded and placed in the ~/lib directory.
+#
+my %LIBRARIES = (
+	'common.pl' => $BOILERPLATES_URL . '/common.pl',
+	'common.zsh' => $BOILERPLATES_URL . './common.zsh',
 );
 
 
@@ -248,7 +269,7 @@ sub run {
 
 	vecho "Run: $cmd";
 	vecho "Log: $run_log";
-	system($cmd . " 2>&1 | tee $run_log")
+	system($cmd . " 2>&1 | tee $run_log") == 0
 		or die "$name failed.\n";
 }
 #}}}
@@ -292,7 +313,6 @@ sub config {
 sub install {
 	chdir $HOME or die $!;
 
-	# - Install oh-my-zsh
 	# - Install homebrew either as sudo-user or not.
 	# - Add my personal tap to homebrew
 	# - Install brew apps.
@@ -302,18 +322,21 @@ sub install {
 	# - Install/Download Dracula
 
 	#1 Setup directory structure.
-	make_directories();
+	fundamentals_setup();
+	confirm 'Continue installation?' or return;
 
-	#2 Install the dot script in ~/bin.
-	#3 Install oh-my-zsh.
+	#2 Install oh-my-zsh.
 	install_oh_my_zsh();
-	confirm('Continue installation?') or return;
+	confirm 'Continue installation?' or return;
 
-	#4 Install brew.
-	#5 Install brew applications.
-	#6 Install dotfile repo (gh or git).
-	#7 Clone/install dracula theme.
-	#8 Download & install FiraCode nerd font
+	#3 Install brew.
+	homebrew_setup();
+	confirm 'Continue installation?' or return;
+
+	#4 Install brew applications.
+	#5 Install dotfile repo (gh or git).
+	#6 Clone/install dracula theme.
+	#7 Download & install FiraCode nerd font
 }
 
 
@@ -333,26 +356,74 @@ sub install_oh_my_zsh {
 
 
 #
-# Make all required directories. The directories are defined
-# in th DIRECTORIES hash.
+# Install the fundamentals of the setup:
+# Create the required directories and install personal 
+# scripts and libarires.
 #
-sub make_directories {
-	header "Directories";
+sub fundamentals_setup {
+	header "Fundamentals";
 
+	# Directories
+	chdir $HOME or die $!;
 	for (keys %DIRECTORIES) {
 		if ( -d ) {
-			good "$_ already exists!";
-		} else {
-			info "Making directory '$_'";
-			mkdir $_, 0755 or die $!;
+			good qq(Directory "$_" already exists!);
+			next;
 		}
+		info qq(Making directory "$_");
+		mkdir $_, 0755 or die $!;
+	}
+
+	# Scripts
+	chdir "$HOME/bin" or die $!;
+	for (keys %SCRIPTS) {
+		if ( -f ) {
+			good qq(Script "$_" already exists!);
+			next;
+		}
+		my $url = $SCRIPTS{$_};
+		info qq(Installing script "$_");
+		system("curl -s $url > $_") == 0
+			or die "Installation failed. Stopping";
+	}
+
+	# Libraries
+	chdir "$HOME/lib" or die $!;
+	for (keys %LIBRARIES) {
+		if ( -f ) {
+			good qq(Library "$_" already exists!);
+			next;
+		}
+		my $url = $LIBRARIES{$_};
+		info qq(Installing library "$_");
+		system("curl -s $url > $_") == 0
+			or die "Installation failed. Stopping";
+	}
+}
+
+
+sub homebrew_setup {
+	chdir $HOME or die $!;
+	header 'Homebrew';
+
+	# Install homebrew
+	if (cmd_exists('brew')) {
+		good 'Already installed!';
+	} else {
+		my $cmd = config('IS_SUDO') ?
+			'/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"' :
+			'mkdir homebrew && curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C homebrew';
+		run('Homebrew Installation', $cmd);
+	}
+
+	my $tap = 'mhmorgan/top';
+	if (qw{ brew tap } =~ $tap) {
+		good qq(Tap "$tap" already added!);
+	} else {
+		info qq(Adding tap "$tap");
 	}
 }
 #}}}
-
-
-################################################################################
-# Homebrew
 
 
 ################################################################################
@@ -369,6 +440,13 @@ sub doctor {
 	} else {
 		good "Dot script found.";
 	}
+	
+	#- Check directory structure.
+	#- Check installed scripts.
+	#- Check installed libraries.
+	#- Check if Oh-my-zsh is installed.
+	#- Check if dotfiles are properly installed.
+	#- Check if homebrew is installed.
 }
 
 
@@ -376,7 +454,6 @@ sub url_not_found {
 	my $url = shift || die 'missing url. Stopping';
 	$_ = qx{ curl -sI $url | head -n1 };
 	chomp;
-	say;
 	/HTTP.. 404/ ? 1 : 0
 }
 #}}}
@@ -405,7 +482,8 @@ if $HELP || !(scalar @ARGV);
 sub main {
     my $cmd = shift;
     my $args = join '", "', @_;
-    eval "$cmd(\"$args\")";
+    my @res = eval "$cmd(\"$args\")";
+	say "@res" if @res;
 }
 
 main(@ARGV);
