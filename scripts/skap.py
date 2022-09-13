@@ -56,8 +56,6 @@ def main(file: str):
         echo('\n'.join(files))
         return
 
-    if file not in files:
-        bail(f"File '{file}' does not exist.")
     echo(fetch_file(file))
 
 
