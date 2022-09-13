@@ -11,15 +11,17 @@
 # Use pod2text to read the documentation. Everything here
 # is documented with POD.
 
+use 5.30.0;
 use utf8;
 use Term::ANSIColor qw(:constants);
-use Term::UI;
 use Term::ReadLine;
 
 my $TERM = Term::ReadLine->new('common.pl');
 
+#{{{ Misc
 =encoding utf8
 =cut
+
 
 =head2 cmd_exists CMD → BOOL
 
@@ -231,13 +233,11 @@ sub timeout {
     }
     return 0
 }
+#}}}
 
 
 ################################################################################
-#                                                                              #
 # User input
-#                                                                              #
-################################################################################
 #{{{
 
 =head1 User input subroutines
@@ -301,11 +301,30 @@ sub choose {
 
 
 ################################################################################
-#                                                                              #
 # Printing
-#                                                                              #
-################################################################################
 #{{{
+
+#
+# Text formatting
+#
+sub black     { BLACK     . "@_" . RESET }
+sub red       { RED       . "@_" . RESET }
+sub green     { GREEN     . "@_" . RESET }
+sub yellow    { YELLOW    . "@_" . RESET }
+sub blue      { BLUE      . "@_" . RESET }
+sub magenta   { MAGENTA   . "@_" . RESET }
+sub cyan      { CYAN      . "@_" . RESET }
+sub white     { WHITE     . "@_" . RESET }
+sub bold      { BOLD      . "@_" . RESET }
+sub faint     { FAINT     . "@_" . RESET }
+sub italic    { ITALIC    . "@_" . RESET }
+sub underline { UNDERLINE . "@_" . RESET }
+
+sub err  { say STDERR, red . "[!!] @_"; }
+sub info { say "[*] @_"; }
+sub emph { say "[↑] @_"; }
+sub good { say green . "[✓] @_"; }
+sub bad  { say red . "[✗] @_"; }
 
 =head1 Printing subroutines
 

@@ -90,7 +90,7 @@ my %SCRIPTS = (
 # downloaded and placed in the ~/lib directory.
 #
 my %LIBRARIES = (
-	'common.pl' => $BOILERPLATES_URL . '/common.pl',
+	'common.pm' => $BOILERPLATES_URL . '/common.pm',
 	'common.zsh' => $BOILERPLATES_URL . './common.zsh',
 );
 
