@@ -27,11 +27,11 @@ my $TERM = Term::ReadLine->new('common.pl');
 # 
 # Check if the given shell command exists.
 # 
-sub cmd_exists {
+sub cmd_exists {{{
     my $cmd = shift;
     my $res = system "which $cmd &>/dev/null";
     $res == 0
-}
+}}}
 
 
 # duration_str NUM → STR
@@ -39,7 +39,7 @@ sub cmd_exists {
 # Format a duration. Input is number of seconds (float or int doesn't matter).
 # The output format is a simple and compact.
 # 
-sub duration_str {
+sub duration_str {{{
     my $dur = int(shift);
     my $txt = sprintf "%ds", $dur % 60;
     $dur /= 60;
@@ -51,7 +51,7 @@ sub duration_str {
     $dur /= 24;
     return $txt if $dur < 1;
     return "${dur}d$txt";
-}
+}}}
 
 
 # is_repo DIR → BOOL
@@ -59,14 +59,14 @@ sub duration_str {
 # Check if the given directory is inside a git repository by looking for a
 # .git directory, either in the directory itself or one of its parents.
 # 
-sub is_repo {
+sub is_repo {{{
     my $dir = shift || die "is_repo missing directory ✗ stopping";
     $dir =~ s/\/$//;
     do {
         return 1 if -d "$dir/.git";
     } while ($dir =~ s/\/[^\/]*$//);
     return 0;
-}
+}}}
 
 
 # sendmail ARGS...
@@ -81,7 +81,7 @@ sub is_repo {
 #     message => STR
 #     files   => ARRAY-REF
 # 
-sub sendmail {
+sub sendmail {{{
     cmd_exists 'mailx' or die "mailx not found ✗ stopping";
     my %args = @_;
     my $to = $args{'to'}     || die "sendmail missing recipent ✗ stopping";
@@ -107,7 +107,7 @@ sub sendmail {
     open(my $mail, '|-:encoding(UTF-8)', $cmd) or die "Failed to open mailx pipe: $! ✗ stopping";
     print $mail $args{'message'};
     close $mail or die "Failed to close mailx pipe: $! ✗ stopping";
-}
+}}}
 
 
 # build_message OBJ → STR
@@ -127,7 +127,7 @@ sub sendmail {
 # 
 # Anything else is just converted displayed as-is.
 # 
-sub build_message {
+sub build_message {{{
     my $arg = shift || return;
     my $lvl = shift || 0; # Header level
     my $txt = '';
@@ -166,7 +166,7 @@ sub build_message {
     $arg = $$arg if ref $arg;
     chomp $arg;
     return "$arg\n";
-}
+}}}
 
 
 # get_env NAME [DEFAULT] → STR
@@ -175,23 +175,23 @@ sub build_message {
 # 
 # If the variable doesn't exist it dies, unless a default value is given.
 # 
-sub get_env {
+sub get_env {{{
     my $name = shift || die "get_env missing variable name ✗ stopping";
     my $val = $ENV{$name} || shift;
     $val or die "environment variable '$name' not found ✗\n";
     return $val;
-}
+}}}
 
 
 # uniq ARGS... → LIST
 # 
 # Uniquify the argument list, returning a list without any duplicates.
 # 
-sub uniq {
+sub uniq {{{
     my %seen;
     $seen{$_}++ for @_;
     return keys %seen;
-}
+}}}
 
 
 # timeout DUR SUB → BOOL
@@ -201,7 +201,7 @@ sub uniq {
 # 
 # timeout returns true if the subroutine timed out.
 # 
-sub timeout {
+sub timeout {{{
     my $duration = shift || die "timeout missing duration ✗ stopping";
     my $cmd = shift || die "timeout missing command ✗ stopping";
     eval {
@@ -216,7 +216,7 @@ sub timeout {
         return 1;
     }
     return 0
-}
+}}}
 #}}}
 
 
@@ -228,23 +228,23 @@ sub timeout {
 # 
 # Ask the user for a single line input with the PROMPT text.
 # 
-sub input {
+sub input {{{
     my $prompt = shift || die '"input" missing prompt ✗ stopping';
     print $prompt;
     chomp(my $in = <STDIN>);
     $in
-}
+}}}
 
 
 # confirm PROMPT → BOOL
 # 
 # Ask the user to confirm the PROMPT question. " (Y/n)" is appended to the text.
 # 
-sub confirm {
+sub confirm {{{
     my $prompt = shift || die 'missing prompt. Stopping';
     my $line = input($prompt . " (Y/n)");
 	$line =~ /n(o|ei?)?/i ? 0 : 1
-}
+}}}
 #}}}
 
 
@@ -272,14 +272,14 @@ sub underline { UNDERLINE . "@_" . RESET }
 #
 # Printing functions which properly handles terminals.
 #
-sub echo {
+sub echo {{{
 	@_ = colorstrip(@_) unless -t STDOUT;
 	say @_;
-}
-sub eecho {
+}}}
+sub eecho {{{
 	@_ = colorstrip(@_) unless -t STDERR;
 	say STDERR @_;
-}
+}}}
 
 
 #
@@ -295,7 +295,7 @@ sub bad  { echo red "[✗] @_"; }
 #
 # Print a random affirmatie word to inspire the user. Just for fun ☆
 #
-sub affirmative {
+sub affirmative {{{
     my @words = (
         "Amazing", "Awesome", "Beautiful", "Brilliant", "Cool",
         "Delightful", "Exquisite", "Extraordinary", "Fabulous",
@@ -305,31 +305,32 @@ sub affirmative {
     );
     my $word = $words[rand @words];
     print "$word ✓\n";
-}
+}}}
 
 
-$SIG{__DIE__} = sub {
+$SIG{__DIE__} = sub {{{
     print STDERR RED if -t STDERR;
     print STDERR "[!!] @_";
     print STDERR RESET if -t STDERR;
     exit 1
-};
+}}};
 
 
-$SIG{__WARN__} = sub { 
+$SIG{__WARN__} = sub {{{ 
     print STDERR YELLOW if -t STDERR;
     print STDERR "[!] @_";
     print STDERR RESET if -t STDERR;
-};
+}}};
 
 
+# header ARG...
 #
 # Print a header text with border with bold formatting.
 # The formatting is removed if STDOUT isn't a terminal.
 #
-sub header {
+sub header {{{
     my $txt = "@_";
     my $border = '=' x (length $txt);
     echo bold "\n$txt\n$border\n\n";
-}
+}}}
 #}}}
