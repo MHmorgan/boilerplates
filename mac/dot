@@ -70,6 +70,8 @@ my %DIRECTORIES = (
 		'Personal scripts and binaries',
 	"$HOME/lib" =>
 		'Personal libraries',
+	"$HOME/docs" =>
+		'Localtion for documentation text files, for reading in vi.',
 );
 
 
