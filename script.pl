@@ -14,19 +14,17 @@ BEGIN {
 
 use common;
 
-sub foo {
+sub foo {{{
     my ($name, $n) = @_;
     $n = 1 unless $n;
     $name = 'foo' unless $name;
     say "Hello $name!" while $n-- > 0;
-}
+}}}
 
 
 ################################################################################
-#                                                                              #
 # main
-#                                                                              #
-################################################################################
+#{{{
 
 my $man = 0;
 my $help = 0;
@@ -43,13 +41,15 @@ pod2usage( -verbose  => 99,
            -sections => "SYNOPSIS|Commands|OPTIONS")
 if $help || !(scalar @ARGV);
 
-sub main {
+sub main {{{
     my $cmd = shift;
     my $args = join '", "', @_;
-    eval "$cmd(\"$args\")";
-}
+    my $res = eval "$cmd(\"$args\")";
+	say $res if defined $res;
+}}}
 
 main @ARGV;
+#}}}
 
 
 ################################################################################
