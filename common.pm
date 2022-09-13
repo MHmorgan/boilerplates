@@ -13,7 +13,7 @@
 
 use 5.30.0;
 use utf8;
-use Term::ANSIColor qw(:constants);
+use Term::ANSIColor qw(:constants colorstrip);
 use Term::ReadLine;
 
 my $TERM = Term::ReadLine->new('common.pl');
@@ -23,12 +23,10 @@ my $TERM = Term::ReadLine->new('common.pl');
 =cut
 
 
-=head2 cmd_exists CMD → BOOL
-
-Check if the given shell command exists.
-
-=cut
-
+# cmd_exists CMD → BOOL
+# 
+# Check if the given shell command exists.
+# 
 sub cmd_exists {
     my $cmd = shift;
     my $res = system "which $cmd &>/dev/null";
@@ -36,13 +34,11 @@ sub cmd_exists {
 }
 
 
-=head2 duration_str NUM → STR
-
-Format a duration. Input is number of seconds (float or int doesn't matter).
-The output format is a simple and compact.
-
-=cut
-
+# duration_str NUM → STR
+# 
+# Format a duration. Input is number of seconds (float or int doesn't matter).
+# The output format is a simple and compact.
+# 
 sub duration_str {
     my $dur = int(shift);
     my $txt = sprintf "%ds", $dur % 60;
@@ -58,13 +54,11 @@ sub duration_str {
 }
 
 
-=head2 is_repo DIR → BOOL
-
-Check if the given directory is inside a git repository by looking for a
-.git directory, either in the directory itself or one of its parents.
-
-=cut
-
+# is_repo DIR → BOOL
+# 
+# Check if the given directory is inside a git repository by looking for a
+# .git directory, either in the directory itself or one of its parents.
+# 
 sub is_repo {
     my $dir = shift || die "is_repo missing directory ✗ stopping";
     $dir =~ s/\/$//;
@@ -75,20 +69,18 @@ sub is_repo {
 }
 
 
-=head2 sendmail ARGS...
-
-Send a mail.
-
-Subroutine arguments:
-
-    to      => STR
-    from    => STR
-    subject => STR
-    message => STR
-    files   => ARRAY-REF
-
-=cut
-
+# sendmail ARGS...
+# 
+# Send a mail.
+# 
+# Subroutine arguments:
+# 
+#     to      => STR
+#     from    => STR
+#     subject => STR
+#     message => STR
+#     files   => ARRAY-REF
+# 
 sub sendmail {
     cmd_exists 'mailx' or die "mailx not found ✗ stopping";
     my %args = @_;
@@ -118,25 +110,23 @@ sub sendmail {
 }
 
 
-=head2 build_message OBJ → STR
-
-Build a string which is inteded to be used as a mail message body.
-Input is a single object which is formatted as follows:
-
-A reference to a hash is treated as sections where the keys are
-section headers and values are section content. The content objects
-are recursively formatted.
-
-A reference to an array which contains one or more references are
-treated as a list of sections without headers.
-
-A reference to an array without any references are treated as
-an unordered list.
-
-Anything else is just converted displayed as-is.
-
-=cut 
-
+# build_message OBJ → STR
+# 
+# Build a string which is inteded to be used as a mail message body.
+# Input is a single object which is formatted as follows:
+# 
+# A reference to a hash is treated as sections where the keys are
+# section headers and values are section content. The content objects
+# are recursively formatted.
+# 
+# A reference to an array which contains one or more references are
+# treated as a list of sections without headers.
+# 
+# A reference to an array without any references are treated as
+# an unordered list.
+# 
+# Anything else is just converted displayed as-is.
+# 
 sub build_message {
     my $arg = shift || return;
     my $lvl = shift || 0; # Header level
@@ -179,14 +169,12 @@ sub build_message {
 }
 
 
-=head2 get_env NAME [DEFAULT] → STR
-
-Get an environment variable.
-
-If the variable doesn't exist it dies, unless a default value is given.
-
-=cut
-
+# get_env NAME [DEFAULT] → STR
+# 
+# Get an environment variable.
+# 
+# If the variable doesn't exist it dies, unless a default value is given.
+# 
 sub get_env {
     my $name = shift || die "get_env missing variable name ✗ stopping";
     my $val = $ENV{$name} || shift;
@@ -195,12 +183,10 @@ sub get_env {
 }
 
 
-=head2 uniq ARGS... → LIST
-
-Uniquify the argument list, returning a list without any duplicates.
-
-=cut
-
+# uniq ARGS... → LIST
+# 
+# Uniquify the argument list, returning a list without any duplicates.
+# 
 sub uniq {
     my %seen;
     $seen{$_}++ for @_;
@@ -208,15 +194,13 @@ sub uniq {
 }
 
 
-=head2 timeout DUR SUB → BOOL
-
-Run a subroutine with a timeout. DUR is the timeout duration in seconds.
-SUB is the subroutine. Any return value is discarded.
-
-C<timeout> returns true if the subroutine timed out.
-
-=cut
-
+# timeout DUR SUB → BOOL
+# 
+# Run a subroutine with a timeout. DUR is the timeout duration in seconds.
+# SUB is the subroutine. Any return value is discarded.
+# 
+# timeout returns true if the subroutine timed out.
+# 
 sub timeout {
     my $duration = shift || die "timeout missing duration ✗ stopping";
     my $cmd = shift || die "timeout missing command ✗ stopping";
@@ -240,14 +224,10 @@ sub timeout {
 # User input
 #{{{
 
-=head1 User input subroutines
-
-=head2 input PROMPT → STR
-
-Ask the user for a single line input with the PROMPT text.
-
-=cut
-
+# input PROMPT → STR
+# 
+# Ask the user for a single line input with the PROMPT text.
+# 
 sub input {
     my $prompt = shift || die '"input" missing prompt ✗ stopping';
     print $prompt;
@@ -256,12 +236,10 @@ sub input {
 }
 
 
-=head2 confirm PROMPT → BOOL
-
-Ask the user to confirm the PROMPT question. " (Y/n)" is appended to the text.
-
-=cut
-
+# confirm PROMPT → BOOL
+# 
+# Ask the user to confirm the PROMPT question. " (Y/n)" is appended to the text.
+# 
 sub confirm {
     my $prompt = shift || die 'confirm missing prompt ✗ stopping';
     return $TERM->ask_yn(
@@ -271,14 +249,12 @@ sub confirm {
 }
 
 
-=head2 choose PROMPT VALS... → VAL(S)
-
-Ask the user to choose between the given values. In a scalar context the
-user chooses one value which is returned. In a list context the user
-chooses multiple values and a list of the chosen values are returned.
-
-=cut
-
+# choose PROMPT VALS... → VAL(S)
+# 
+# Ask the user to choose between the given values. In a scalar context the
+# user chooses one value which is returned. In a list context the user
+# chooses multiple values and a list of the chosen values are returned.
+# 
 sub choose {
     my $prompt = shift || die 'choose missing prompt ✗ stopping';
     my @choices = @_;
@@ -320,58 +296,43 @@ sub faint     { FAINT     . "@_" . RESET }
 sub italic    { ITALIC    . "@_" . RESET }
 sub underline { UNDERLINE . "@_" . RESET }
 
-sub err  { say STDERR, red . "[!!] @_"; }
-sub info { say "[*] @_"; }
-sub emph { say "[↑] @_"; }
-sub good { say green . "[✓] @_"; }
-sub bad  { say red . "[✗] @_"; }
 
-=head1 Printing subroutines
-
-=head2 affirmative
-
-Print a random affirmatie word to inspire the user. Just for fun ☆
-
-=cut
-
-sub affirmative {
-    my @words = (
-        "Amazing",
-        "Awesome",
-        "Beautiful",
-        "Brilliant",
-        "Cool",
-        "Delightful",
-        "Exquisite",
-        "Extraordinary",
-        "Fabulous",
-        "Fantastic",
-        "Glorious",
-        "Good",
-        "Gracious",
-        "Jazzed",
-        "Marvelous",
-        "Nice",
-        "Right",
-        "Sensational",
-        "Sweet",
-        "Terrific",
-        "Unique ",
-    );
-    my $word = $words[rand @words];
-    print "$word ✓\n";
+#
+# Printing functions which properly handles terminals.
+#
+sub echo {
+	@_ = colorstrip(@_) unless -t STDOUT;
+	say @_;
+}
+sub eecho {
+	@_ = colorstrip(@_) unless -t STDERR;
+	say STDERR @_;
 }
 
 
-=head2 affirmativeln
+#
+# Prefixed printing functions.
+#
+sub err  { eecho red  "[!!] @_"; }
+sub info { echo "[*] @_"; }
+sub emph { echo "[↑] @_"; }
+sub good { echo green "[✓] @_"; }
+sub bad  { echo red "[✗] @_"; }
 
-Same as C<affirmative> with an extra trailing newline.
 
-=cut
-
-sub affirmativeln {
-    affirmative;
-    print "\n";
+#
+# Print a random affirmatie word to inspire the user. Just for fun ☆
+#
+sub affirmative {
+    my @words = (
+        "Amazing", "Awesome", "Beautiful", "Brilliant", "Cool",
+        "Delightful", "Exquisite", "Extraordinary", "Fabulous",
+        "Fantastic", "Glorious", "Good", "Gracious", "Jazzed",
+        "Marvelous", "Nice", "Right", "Sensational", "Sweet",
+		"Terrific", "Unique ",
+    );
+    my $word = $words[rand @words];
+    print "$word ✓\n";
 }
 
 
@@ -390,288 +351,13 @@ $SIG{__WARN__} = sub {
 };
 
 
-=head2 err STR...
-
-Print an error message to STDERR. The message is prefixed with C<[!!]>.
-The message is colored red if STDERR is a terminal.
-
-=cut
-
-sub err {
-    print STDERR RED if -t STDERR;
-    print STDERR "[!!] @_\n";
-    print STDERR RESET if -t STDERR;
-}
-
-
-=head2 info STR...
-
-Print an info message to STDOUT. The message is prefixed with C<[*]>.
-
-=cut
-
-sub info {
-    print "[*] @_\n"
-}
-
-
-=head2 header STR...
-
-Print a header text with border with bold formatting.
-The formatting is removed if STDOUT isn't a terminal.
-
-=cut
-
+#
+# Print a header text with border with bold formatting.
+# The formatting is removed if STDOUT isn't a terminal.
+#
 sub header {
     my $txt = "@_";
     my $border = '=' x (length $txt);
-    print BOLD if -t STDOUT;
-    print "\n$txt\n$border\n\n";
-    print RESET if -t STDOUT;
+    echo bold "\n$txt\n$border\n\n";
 }
-
-# Colored text #################################################################
-
-=head1 Colored text subroutines
-
-=head2 black STR...
-
-Print text with black color.
-The color is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub black {
-    print BLACK if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 red STR...
-
-Print text with red color.
-The color is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub red {
-    print RED if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 green STR...
-
-Print text with green color.
-The color is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub green {
-    print GREEN if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 yellow STR...
-
-Print text with yellow color.
-The color is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub yellow {
-    print YELLOW if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 blue STR...
-
-Print text with blue color.
-The color is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub blue {
-    print BLUE if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 magenta STR...
-
-Print text with magenta color.
-The color is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub magenta {
-    print MAGENTA if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 cyan STR...
-
-Print text with cyan color.
-The color is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub cyan {
-    print CYAN if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 white STR...
-
-Print text with white color.
-The color is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub white {
-    print WHITE if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-# Bold text ####################################################################
-
-=head1 Bold text subroutines
-
-=head2 bold STR...
-
-Print text with bold formatting.
-The formatting is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub bold {
-    print BOLD if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 bblack STR...
-
-Print text with black color and bold formatting.
-The color and formatting is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub bblack {
-    print BOLD BLACK if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 bred STR...
-
-Print text with red color and bold formatting.
-The color and formatting is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub bred {
-    print BOLD RED if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 bgreen STR...
-
-Print text with green color and bold formatting.
-The color and formatting is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub bgreen {
-    print BOLD GREEN if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 byellow STR...
-
-Print text with yellow color and bold formatting.
-The color and formatting is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub byellow {
-    print BOLD YELLOW if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 bblue STR...
-
-Print text with blue color and bold formatting.
-The color and formatting is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub bblue {
-    print BOLD BLUE if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 bmagenta STR...
-
-Print text with magenta color and bold formatting.
-The color and formatting is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub bmagenta {
-    print BOLD MAGENTA if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 bcyan STR...
-
-Print text with cyan color and bold formatting.
-The color and formatting is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub bcyan {
-    print BOLD CYAN if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
-
-=head2 bwhite STR...
-
-Print text with white color and bold formatting.
-The color and formatting is removed if STDOUT isn't a terminal.
-
-=cut
-
-sub bwhite {
-    print BOLD WHITE if -t STDOUT;
-    print "@_";
-    print RESET if -t STDOUT;
-}
-
 #}}}
