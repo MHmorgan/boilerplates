@@ -241,37 +241,9 @@ sub input {
 # Ask the user to confirm the PROMPT question. " (Y/n)" is appended to the text.
 # 
 sub confirm {
-    my $prompt = shift || die 'confirm missing prompt ✗ stopping';
-    return $TERM->ask_yn(
-        prompt => $prompt,
-        default => 'y',
-    );
-}
-
-
-# choose PROMPT VALS... → VAL(S)
-# 
-# Ask the user to choose between the given values. In a scalar context the
-# user chooses one value which is returned. In a list context the user
-# chooses multiple values and a list of the chosen values are returned.
-# 
-sub choose {
-    my $prompt = shift || die 'choose missing prompt ✗ stopping';
-    my @choices = @_;
-    @choices > 0 or die 'choose missing values ✗ stopping';
-    if (wantarray) {
-        my @vals = $TERM->get_reply(
-            prompt => $prompt,
-            choices => \@choices,
-            multi => 1,
-        );
-        return @vals;
-    }
-    my $val = $TERM->get_reply(
-        prompt => $prompt,
-        choices => \@choices,
-    );
-    return $val;
+    my $prompt = shift || die 'missing prompt. Stopping';
+    my $line = input($prompt . " (Y/n)");
+	$line =~ /n(o|ei?)?/i ? 0 : 1
 }
 #}}}
 
