@@ -1,3 +1,4 @@
+all: check-dot filelist
 
 filelist:
 	./scripts/filelist.py | sort > meta/filelist.txt
