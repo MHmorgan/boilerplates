@@ -1,4 +1,4 @@
-common.pl
+common.pm
 common.zsh
 mac/dot
 script.pl
