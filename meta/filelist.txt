@@ -1,6 +1,8 @@
 common.pm
 common.zsh
 mac/dot
+script.exp
 script.pl
 script.py
 script.zsh
+skap.py
