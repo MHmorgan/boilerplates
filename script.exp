@@ -1,0 +1,15 @@
+#!/usr/bin/env expect
+
+send_user "Mail address:"
+expect_user -re "(.*)\n"
+set ADDR $expect_out(1,string)
+send_user "\n"
+
+spawn sendmail $ADDR
+
+send "TO: $ADDR\r"
+send "FROM: $ADDR\r"
+send "SUBJECT: Test Expect!\n\n"
+
+interact
+
