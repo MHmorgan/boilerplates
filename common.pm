@@ -12,16 +12,13 @@
 # is documented with POD.
 
 use 5.30.0;
+use strict;
+use warnings;
 use utf8;
 use Term::ANSIColor qw(:constants colorstrip);
 use Term::ReadLine;
 
-my $TERM = Term::ReadLine->new('common.pl');
-
 #{{{ Misc
-=encoding utf8
-=cut
-
 
 # cmd_exists CMD → BOOL
 # 
