@@ -26,20 +26,20 @@ sub foo {{{
 # main
 #{{{
 
-my $man = 0;
-my $help = 0;
-my $foo = 'foo';
+my $MAN = 0;
+my $HELP = 0;
+my $FOO = 'foo';
 
-GetOptions('help|h' => \$help,
-           'foo'    => \$foo,
-           'man'    => \$man)
+GetOptions('help|h' => \$HELP,
+           'foo'    => \$FOO,
+           'man'    => \$MAN)
 or pod2usage(2);
 
 pod2usage( -exitval  => 0,
-           -verbose  => 2) if $man;
+           -verbose  => 2) if $MAN;
 pod2usage( -verbose  => 99,
            -sections => "SYNOPSIS|Commands|OPTIONS")
-if $help || !(scalar @ARGV);
+if $HELP || !(scalar @ARGV);
 
 sub main {{{
     my $cmd = shift;
