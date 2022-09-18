@@ -54,8 +54,13 @@ sub logsay {
 	say $LOG_OUT @_;
 }
 
-$SIG{__DIE__} = sub { logsay red "[!!] @_"; exit 1 };
-$SIG{__WARN__} = sub { logsay yellow "[!] @_" };
+sub logprint {
+	@_ = colorstrip(@_) unless -t $LOG_OUT;
+	print $LOG_OUT @_;
+}
+
+$SIG{__DIE__} = sub { logprint red "[!!] @_"; exit 1 };
+$SIG{__WARN__} = sub { logprint yellow "[!] @_" };
 
 
 #
