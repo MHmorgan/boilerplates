@@ -68,7 +68,7 @@ $SIG{__WARN__} = sub { logprint yellow "[!] @_" };
 #
 sub err  { logsay red  "[!!] @_" }
 sub info { logsay "[*] @_" }
-sub emph { logsay "[↑] @_" }
+sub emph { logsay bold "[↑] @_" }
 sub good { logsay green "[✓] @_" }
 sub bad  { logsay red "[✗] @_" }
 
