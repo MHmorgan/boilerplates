@@ -1,6 +1,7 @@
 common.pm
 common.zsh
 mac/dot
+mac/rogu
 script.exp
 script.pl
 script.py

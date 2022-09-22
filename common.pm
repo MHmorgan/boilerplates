@@ -68,7 +68,7 @@ $SIG{__WARN__} = sub { logprint yellow "[!] @_" };
 #
 sub err  { logsay red  "[!!] @_" }
 sub info { logsay "[*] @_" }
-sub emph { logsay "[↑] @_" }
+sub emph { logsay bold "[↑] @_" }
 sub good { logsay green "[✓] @_" }
 sub bad  { logsay red "[✗] @_" }
 
@@ -91,7 +91,7 @@ sub affirmative {{{
 		"Terrific", "Unique ",
     );
     my $word = $words[rand @words];
-    say "$word ✓\n";
+    print "$word ✓\n";
 }}}
 
 
@@ -103,7 +103,7 @@ sub affirmative {{{
 sub header {{{
     my $txt = "@_";
     my $border = '=' x (length $txt);
-    say bold "\n$txt\n$border\n\n";
+    print bold "\n$txt\n$border\n\n";
 }}}
 
 #}}}

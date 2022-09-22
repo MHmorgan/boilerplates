@@ -1,0 +1,295 @@
+#!/usr/bin/env perl
+#
+#  ____                   
+# |  _ \ ___   __ _ _   _ 
+# | |_) / _ \ / _` | | | |
+# |  _ < (_) | (_| | |_| |
+# |_| \_\___/ \__, |\__,_|
+#             |___/       
+# 
+# Personal assistant on mac systems.
+
+use 5.30.0;
+use utf8;
+use warnings;
+use open qw(:std :utf8);
+use strict;
+
+use Getopt::Long;
+use Pod::Usage;
+
+BEGIN {
+    push @INC, "$ENV{HOME}/lib";
+}
+
+use common;
+
+#
+# Application directories
+#
+our $HOME       = $ENV{"HOME"};
+our $CACHE_DIR  = "$HOME/.cache/rogu";
+our $CONF_DIR   = "$HOME/.config/rogu";
+
+#
+# Application files
+#
+our $USER_CONF_FILE = "$CONF_DIR/rogu.conf";
+our $APP_DATA_FILE  = "$CONF_DIR/data";
+
+
+################################################################################
+# Utils
+#{{{
+
+# trim STR → STR
+#
+# Remove any leading and trailing whitespace
+#
+sub trim { shift =~ s/^\s+|\s+$//gr }
+#}}}
+
+
+################################################################################
+# Install
+#
+# The installation does the following:
+#
+# - Installs homebrew, adds taps and installs brew applications. 
+# - Clones and installs my dotfiles from github.
+# - Runs 'Install' config tasks
+# - Runs 'Get' config tasks
+#
+#{{{
+
+sub install {{{
+    
+}}}
+#}}}
+
+
+################################################################################
+# Doctor
+#{{{
+
+#}}}
+
+
+################################################################################
+# Configurations
+#
+# User data configuration routines.
+#
+# The user configuration data structure looks like:
+#
+# {
+#     <section name> => {
+#         'DIR' => <workdir>
+#         'RUN' => <command>
+#         'DATA' => ( <list of data lines> )
+#     }
+# }
+#
+# Where all subsections are optional and may be undef.
+#
+#{{{
+
+sub conf {
+    $_ = shift || die "Missing subcommand ✗\n";
+    return print_conf(\%::CONF)    if /print/;
+    return validate_conf(\%::CONF) if /validate/;
+    die "Unknown subcommand: $_ ✗\n";
+}
+
+# read_conf FILE_NAME
+#
+# Read and parse the given file into the user configuration data
+# structure.
+#
+sub read_conf {{{
+
+    my $text;
+    my $fname = shift;
+    open(my $cfile, "<", $fname) or die qq(opening "$fname": $!); 
+    while (<$cfile>) {
+        # Skip empty lines and comments
+        next if /^(#.*|\s*)$/;
+        # Remove leading whitespace and escaped newlines
+        s/\\\n//g;
+        $text .= $_;
+    }
+    close $cfile;
+
+    my %conf;
+    my $sect;
+    for (split /\n/, $text) {
+        #
+        # New section with optional work directory.
+        #
+        if (/^\[(.*?(@(.*))?)\]/) {
+            $sect = {};
+            $conf{trim($1)} = $sect;
+            if (defined $3) {
+                $sect->{'DIR'} = trim($3 =~ s/~/$HOME/r);
+            }
+        }
+        #
+        # Non-data content of a section.
+        #
+        elsif (/^([A-Z]+): (.*)$/) {
+            $sect->{$1} = trim($2);
+        }
+        #
+        # Data content of a section.
+        # 
+        else {
+            push @{$sect->{'DATA'}}, trim($_);
+        }
+    }
+
+    return %conf;
+}}}
+
+# print_conf CONF
+#
+# Print the given user config data structure.
+#
+sub print_conf {{{
+    my $conf = shift;
+
+    if (!$conf) {
+        say "<empty config>";
+        return
+    }
+
+    while (my ($name, $sect) = each %{$conf}) {
+        header $name;
+        for (keys %{$sect}) {
+            say bold "$_:";
+            my $val = $sect->{$_};
+            if (ref($val) =~ m/ARRAY/) {
+                say join("\n", @{$val});
+            } else {
+                say $val;
+            }
+        }
+    }
+}}}
+
+# validate_conf CONF
+#
+# Validates the sections and subsections of the given user
+# configuration data.
+#
+sub validate_conf {{{
+    my ($conf) = @_;
+
+    my %sections = (
+        Get         => [ 'DIR', 'DATA' ],
+        Install     => [ 'DIR', 'RUN' ],
+        Homebrew    => [ 'DIR', 'DATA' ]
+    );
+
+    for my $sec_name (keys %{$conf}) {
+        $sec_name =~ /^(\w+)/;
+        my $sec_type = $1;
+        #
+        # Validate section type.
+        #
+        unless (exists $sections{$sec_type}) {
+            err qq(Unknown section type "$sec_type" in [$sec_name]);
+            next;
+        }
+        #
+        # Validate subsections.
+        #
+        while (my ($sub_name, $val) = each %{$conf->{$sec_name}}) {
+            # Valid subsection name.
+            unless(grep /$sub_name/, @{$sections{$sec_type}}) {
+                err qq(Invalid subsection "$sub_name" in [$sec_name]);
+            }
+            # Directories exists.
+            elsif ($sub_name eq 'DIR') {
+                err qq(Workdir not found "$val" for [$sec_name])
+                    unless -d $val;
+            }
+        }
+    }
+}}}
+#}}}
+
+
+################################################################################
+# Main
+#{{{
+
+mkdir "$HOME/.cache", 0755 unless -d "$HOME/.cache";
+mkdir "$HOME/.config", 0755 unless -d "$HOME/.config";
+mkdir $CACHE_DIR, 0755 unless -d $CACHE_DIR;
+mkdir $CONF_DIR, 0755 unless -d $CONF_DIR;
+
+dbmopen(our %DATA, $APP_DATA_FILE, 0644);
+
+our %CONF;
+%CONF = read_conf $USER_CONF_FILE if -f $USER_CONF_FILE;
+
+my $MAN = 0;
+my $HELP = 0;
+
+GetOptions('help|h' => \$HELP, 'man' => \$MAN)
+    or pod2usage(2);
+pod2usage( -exitval  => 0, -verbose  => 2)
+    if $MAN;
+pod2usage( -verbose  => 99, -sections => "SYNOPSIS|Commands|OPTIONS")
+    if $HELP || !(scalar @ARGV);
+
+my $CMD = shift;
+my $ARGS = join '", "', @ARGV;
+my $RES = eval "$CMD(\"$ARGS\")";
+say $RES if $RES;
+#}}}
+
+
+################################################################################
+# Help text
+#{{{
+
+__END__
+=head1 NAME
+
+rogu - Roger's weird offspring.
+
+=head1 SYNOPSIS
+
+rogu [options] <command> [args...]
+
+=head1 Commands
+
+=over 8
+
+=item B<conf> <cmd>
+
+Configuration stuff.
+
+=back
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--help>
+
+Print a brief help message and exits.
+
+=item B<--man>
+
+Prints the manual page and exits.
+
+=back
+
+=head1 DESCRIPTION
+
+B<This program> will read the given input file(s) and do something
+useful with the contents thereof.
+
+=cut #}}}
