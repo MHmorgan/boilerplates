@@ -215,22 +215,46 @@ function bold() {
 }
 
 function info() {
-	echo $2 "[*] $1" >&2
+	echo "[*] $*" >&2
+}
+
+function emph() {
+    if [[ -t 2 ]]; then
+	    echo "$fg_bold[default][↑] $*$reset_color" >&2
+    else
+	    echo "[↑] $*" >&2
+    fi
+}
+
+function good() {
+    if [[ -t 2 ]]; then
+	    echo "$fg_no_bold[green][✓] $*$reset_color" >&2
+    else
+	    echo "[✓] $*" >&2
+    fi
+}
+
+function bad() {
+    if [[ -t 2 ]]; then
+	    echo "$fg_no_bold[red][✗] $*$reset_color" >&2
+    else
+	    echo "[✗] $*" >&2
+    fi
 }
 
 function warn() {
     if [[ -t 2 ]]; then
-	    echo $2 "$fg_no_bold[yellow][!] $1$reset_color" >&2
+	    echo "$fg_no_bold[yellow][!] $*$reset_color" >&2
     else
-	    echo $2 "[!] $1" >&2
+	    echo "[!] $*" >&2
     fi
 }
 
 function error() {
     if [[ -t 2 ]]; then
-	    echo $2 "$fg_no_bold[red][!!] $1$reset_color" >&2
+	    echo "$fg_no_bold[red][!!] $*$reset_color" >&2
     else
-	    echo $2 "[!!] $1" >&2
+	    echo "[!!] $*" >&2
     fi
 }
 
