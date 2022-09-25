@@ -30,12 +30,26 @@ use common;
 our $HOME       = $ENV{"HOME"};
 our $CACHE_DIR  = "$HOME/.cache/rogu";
 our $CONF_DIR   = "$HOME/.config/rogu";
+our $TMP_DIR    = "/tmp/rogu";
 
 #
 # Application files
 #
 our $USER_CONF_FILE = "$CONF_DIR/rogu.conf";
 our $APP_DATA_FILE  = "$CONF_DIR/data";
+
+#
+# Dotfiles parameters
+#
+our $DOT_REPO   = "https://github.com/MHmorgan/dotfiles-mac";
+our $DOT_DIR    = "$HOME/.dotfiles";
+our $DOT_BRANCH = "main";
+
+#
+# Other global parameters
+#
+our $DEFAULT_EDITOR = 'vi';
+our $DEFAULT_PAGER  = 'less';
 
 
 ################################################################################
@@ -47,6 +61,49 @@ our $APP_DATA_FILE  = "$CONF_DIR/data";
 # Remove any leading and trailing whitespace
 #
 sub trim { shift =~ s/^\s+|\s+$//gr }
+
+
+# list_select DESC VAL...
+#
+# Have a user select values of a list, returning
+# the modified list.
+#
+sub list_select {{{
+    my ($desc, @values) = @_;
+    #
+    # Fill temporary file with list.
+    #
+    my $tmp_file = "/tmp/rogu/" . time;
+    open(my $fh, ">", $tmp_file) or die "opening tmp file: $!";
+    say $fh "# $desc";
+    say $fh join("\n", @values);
+    close $fh;
+    #
+    # Have the user edit the list.
+    #
+    my $editor = $ENV{'EDITOR'} // $DEFAULT_EDITOR;
+    system "$editor $tmp_file";
+    #
+    # Return the modified list.
+    #
+    open($fh, "<", $tmp_file) or die "opening tmp file: $!";
+    my @new_values;
+    while (<$fh>) {
+        chomp;
+        next if /^(#|\s*%)/;
+        push @new_values, $_;
+    }
+    close $fh;
+    unlink $tmp_file;
+    return @new_values;
+}}}
+
+sub run {
+    my $cmd = shift;
+    say "[>] $cmd";
+    system $cmd;
+    return $? == 0;
+}
 #}}}
 
 
@@ -55,23 +112,171 @@ sub trim { shift =~ s/^\s+|\s+$//gr }
 #
 # The installation does the following:
 #
-# - Installs homebrew, adds taps and installs brew applications. 
 # - Clones and installs my dotfiles from github.
+# - Installs homebrew, adds taps and installs brew applications. 
 # - Runs 'Install' config tasks
 # - Runs 'Get' config tasks
 #
 #{{{
 
-sub install {{{
-    
+sub install {
+    qx{ which git } or die "Git is not installed!\n";
+    qx{ which zsh } or die "Zsh is not installed!\n";
+
+    my @steps = qw(
+        Oh-my-zsh
+        Dotfiles
+        Homebrew
+        Brew-apps
+        Get-targets 
+        Install-targets
+    );
+    @steps = list_select "Remove any installation steps to skip.", @steps;
+
+    if (grep /Oh-my-zsh/, @steps) {
+        inst_oh_my_zsh();
+        sleep 1;
+    }
+    if (grep /Dotfiles/, @steps) {
+        inst_dotfiles();
+        sleep 1;
+    }
+    if (grep /Homebrew/, @steps) {
+        inst_homebrew();
+        sleep 1;
+    }
+    if (grep /Brew-apps/, @steps) {
+        inst_brew_apps();
+        sleep 1;
+    }
+    if (grep /Get-targets/, @steps) {
+        inst_get_targets();
+        sleep 1;
+    }
+    if (grep /Install-targets/, @steps) {
+        inst_install_targets();
+        sleep 1;
+    }
+}
+
+
+# inst_setup NAME
+#
+# Common setup for all the different installation
+# steps.
+#
+sub inst_setup {
+    header shift;
+    chdir () or die $!;
+    sleep 1;
+}
+
+
+sub inst_oh_my_zsh {{{
+    inst_setup "Oh-my-zsh";
+	if ( -d "$HOME/.oh-my-zsh" ) {
+        good "Already installed!";
+        return;
+    }
+	run 'sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"'
+        or die "Oh no!\n";
 }}}
+
+
+sub inst_dotfiles {
+    inst_setup "Dotfiles";
+    if (-d ".dotfiles") {
+        good "Already installed!";
+        return;
+    }
+    #TODO
+    
+    my $dotcmd = "git --git-dir=$::HOME/.dotfiles --work-tree=$::HOME";
+
+    run "git clone --bare $::DOT_REPO $::DOT_DIR"
+        or die "Oh no!\n";
+
+    info "Creating backup of existing dotfiles.";
+    my @dotfiles = qx{ $dotcmd ls-tree --name-only -r $::DOT_BRANCH };
+    for (@dotfiles) {
+        say "$_ → $_~";
+        rename $_, "$_~";
+    }
+
+    info "Finishing setup...";
+    run "$dotcmd checkout $::DOT_BRANCH"
+        or die "Oh no!\n";
+    run "$dotcmd config branch.$::DOT_BRANCH.remote origin"
+        or die "Oh no!\n";
+    run "$dotcmd config branch.$::DOT_BRANCH.merge refs/heads/$::DOT_BRANCH"
+        or die "Oh no!\n";
+}
+
+
+sub inst_homebrew {
+    inst_setup "Homebrew";
+    #TODO
+}
+
+
+sub inst_brew_apps {
+    inst_setup "Homebrew Applications";
+
+    my $data = $::CONF{'Homebrew Apps'}{'DATA'}
+        // [ "# (No Homebrew apps defined in user config)" ];
+
+    my @apps = list_select(
+        "Select which homebrew applications to install.",
+        @{$data}
+    );
+    say join "\n", @apps;
+    #TODO
+}
+
+
+sub inst_get_targets {
+    inst_setup "Get Targets";
+    #TODO
+}
+
+
+sub inst_install_targets {
+    inst_setup "Install Targets";
+    #TODO
+}
+#}}}
+
+
+################################################################################
+# Uninstall
+#
+# Does everything inverse of what the Install
+# operations does.
+#
+#{{{
+#TODO
+
+sub unin_homebrew {
+    confirm yellow "Are you suuure you want to uninstall Homebrew?"
+        or return;
+    confirm yellow bold "Are you 100% absolutely definetly positively sure you want to uninstall Homebrew?"
+        or return;
+    #TODO
+}
+
+sub unin_brew_apps {
+    my @apps;
+    confirm yellow "Are you completely sure you want to uninstall Homebrew applications?"
+        or return;
+    #TODO
+}
 #}}}
 
 
 ################################################################################
 # Doctor
 #{{{
-
+#TODO
 #}}}
 
 
@@ -86,6 +291,7 @@ sub install {{{
 #     <section name> => {
 #         'DIR' => <workdir>
 #         'RUN' => <command>
+#         'CHECK => <command>
 #         'DATA' => ( <list of data lines> )
 #     }
 # }
@@ -94,19 +300,19 @@ sub install {{{
 #
 #{{{
 
-sub conf {
+sub config {
     $_ = shift || die "Missing subcommand ✗\n";
-    return print_conf(\%::CONF)    if /print/;
-    return validate_conf(\%::CONF) if /validate/;
+    return conf_print(\%::CONF)    if /print/;
+    return conf_validate(\%::CONF) if /validate/;
     die "Unknown subcommand: $_ ✗\n";
 }
 
-# read_conf FILE_NAME
+# conf_read FILE_NAME
 #
 # Read and parse the given file into the user configuration data
 # structure.
 #
-sub read_conf {{{
+sub conf_read {{{
 
     my $text;
     my $fname = shift;
@@ -150,11 +356,11 @@ sub read_conf {{{
     return %conf;
 }}}
 
-# print_conf CONF
+# conf_print CONF
 #
 # Print the given user config data structure.
 #
-sub print_conf {{{
+sub conf_print {{{
     my $conf = shift;
 
     if (!$conf) {
@@ -176,17 +382,17 @@ sub print_conf {{{
     }
 }}}
 
-# validate_conf CONF
+# conf_validate CONF
 #
 # Validates the sections and subsections of the given user
 # configuration data.
 #
-sub validate_conf {{{
+sub conf_validate {{{
     my ($conf) = @_;
 
     my %sections = (
         Get         => [ 'DIR', 'DATA' ],
-        Install     => [ 'DIR', 'RUN' ],
+        Install     => [ 'DIR', 'RUN', 'CHECK' ],
         Homebrew    => [ 'DIR', 'DATA' ]
     );
 
@@ -220,6 +426,12 @@ sub validate_conf {{{
 
 
 ################################################################################
+# Data
+#{{{
+#}}}
+
+
+################################################################################
 # Main
 #{{{
 
@@ -227,16 +439,18 @@ mkdir "$HOME/.cache", 0755 unless -d "$HOME/.cache";
 mkdir "$HOME/.config", 0755 unless -d "$HOME/.config";
 mkdir $CACHE_DIR, 0755 unless -d $CACHE_DIR;
 mkdir $CONF_DIR, 0755 unless -d $CONF_DIR;
+mkdir $TMP_DIR, 0755 unless -d $TMP_DIR;
 
 dbmopen(our %DATA, $APP_DATA_FILE, 0644);
 
 our %CONF;
-%CONF = read_conf $USER_CONF_FILE if -f $USER_CONF_FILE;
+%CONF = conf_read $USER_CONF_FILE if -f $USER_CONF_FILE;
 
 my $MAN = 0;
 my $HELP = 0;
+my $DEBUG = 0;
 
-GetOptions('help|h' => \$HELP, 'man' => \$MAN)
+GetOptions('help|h' => \$HELP, 'man' => \$MAN, 'debug|d', \$DEBUG)
     or pod2usage(2);
 pod2usage( -exitval  => 0, -verbose  => 2)
     if $MAN;
@@ -246,7 +460,7 @@ pod2usage( -verbose  => 99, -sections => "SYNOPSIS|Commands|OPTIONS")
 my $CMD = shift;
 my $ARGS = join '", "', @ARGV;
 my $RES = eval "$CMD(\"$ARGS\")";
-say $RES if $RES;
+say $RES if $DEBUG && $RES;
 #}}}
 
 
