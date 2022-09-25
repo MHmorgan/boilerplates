@@ -31,6 +31,7 @@ sub blue      { BLUE      . "@_" . RESET }
 sub magenta   { MAGENTA   . "@_" . RESET }
 sub cyan      { CYAN      . "@_" . RESET }
 sub white     { WHITE     . "@_" . RESET }
+
 sub bold      { BOLD      . "@_" . RESET }
 sub faint     { FAINT     . "@_" . RESET }
 sub italic    { ITALIC    . "@_" . RESET }
@@ -66,11 +67,11 @@ $SIG{__WARN__} = sub { logprint yellow "[!] @_" };
 #
 # Prefixed and colored log messages.
 #
-sub err  { logsay red  "[!!] @_" }
-sub info { logsay "[*] @_" }
-sub emph { logsay bold "[↑] @_" }
+sub err  { logsay red   "[!!] @_" }
+sub info { logsay       "[*] @_" }
+sub emph { logsay bold  "[↑] @_" }
 sub good { logsay green "[✓] @_" }
-sub bad  { logsay red "[✗] @_" }
+sub bad  { logsay red   "[✗] @_" }
 
 #}}}
 
@@ -117,7 +118,7 @@ sub header {{{
 # Ask the user for a single line input with the PROMPT text.
 # 
 sub input {{{
-    my $prompt = shift || die '"input" missing prompt ✗ stopping';
+    my $prompt = shift;
     print $prompt;
     chomp(my $in = <STDIN>);
     $in
@@ -129,7 +130,7 @@ sub input {{{
 # Ask the user to confirm the PROMPT question. " (Y/n)" is appended to the text.
 # 
 sub confirm {{{
-    my $prompt = shift || die 'missing prompt. Stopping';
+    my $prompt = shift;
     my $line = input($prompt . " (Y/n)");
 	$line =~ /n(o|ei?)?/i ? 0 : 1
 }}}
