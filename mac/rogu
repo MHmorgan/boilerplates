@@ -760,9 +760,11 @@ __END__
 
 rogu - Roger's weird offspring.
 
+
 =head1 SYNOPSIS
 
 rogu [options] <command> [args...]
+
 
 =head1 Commands
 
@@ -790,13 +792,28 @@ Uninstall most of the things that Rogu knows how to handle.
 
 =back
 
+
+=item B<uninstall>
+
+=back
+
+
+=item B<doctor>
+
+=back
+
+
 =head1 OPTIONS
 
 =over 8
 
+
 =item B<--help>
 
 Print a brief help message and exits.
+
+=back
+
 
 =item B<--man>
 
@@ -804,9 +821,9 @@ Prints the manual page and exits.
 
 =back
 
+
 =head1 DESCRIPTION
 
-B<This program> will read the given input file(s) and do something
-useful with the contents thereof.
+Bla bla bla... Rogu's awesome.
 
 =cut #}}}
