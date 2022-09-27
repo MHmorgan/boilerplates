@@ -83,7 +83,7 @@ sub bad  { logsay red   "[✗] @_" }
 #
 # Print a random affirmatie word to inspire the user. Just for fun ☆
 #
-sub affirmative {{{
+sub affirmative {
     my @words = (
         "Amazing", "Awesome", "Beautiful", "Brilliant", "Cool",
         "Delightful", "Exquisite", "Extraordinary", "Fabulous",
@@ -93,7 +93,7 @@ sub affirmative {{{
     );
     my $word = $words[rand @words];
     print "$word ✓\n";
-}}}
+}
 
 
 # header ARG...
@@ -101,11 +101,11 @@ sub affirmative {{{
 # Print a header text with border with bold formatting.
 # The formatting is removed if STDOUT isn't a terminal.
 #
-sub header {{{
+sub header {
     my $txt = "@_";
     my $border = '=' x (length $txt);
     print bold "\n$txt\n$border\n\n";
-}}}
+}
 
 #}}}
 
@@ -117,23 +117,23 @@ sub header {{{
 # 
 # Ask the user for a single line input with the PROMPT text.
 # 
-sub input {{{
+sub input {
     my $prompt = shift;
     print $prompt;
     chomp(my $in = <STDIN>);
     $in
-}}}
+}
 
 
 # confirm PROMPT → BOOL
 # 
 # Ask the user to confirm the PROMPT question. " (Y/n)" is appended to the text.
 # 
-sub confirm {{{
+sub confirm {
     my $prompt = shift;
     my $line = input($prompt . " (Y/n)");
 	$line =~ /n(o|ei?)?/i ? 0 : 1
-}}}
+}
 
 #}}}
 
@@ -145,11 +145,11 @@ sub confirm {{{
 # 
 # Check if the given shell command exists.
 # 
-sub cmd_exists {{{
+sub cmd_exists {
     my $cmd = shift;
     my $res = system "which $cmd &>/dev/null";
     $res == 0
-}}}
+}
 
 
 # duration_str NUM → STR
@@ -157,7 +157,7 @@ sub cmd_exists {{{
 # Format a duration. Input is number of seconds (float or int doesn't matter).
 # The output format is a simple and compact.
 # 
-sub duration_str {{{
+sub duration_str {
     my $dur = int(shift);
     my $txt = sprintf "%ds", $dur % 60;
     $dur /= 60;
@@ -169,7 +169,7 @@ sub duration_str {{{
     $dur /= 24;
     return $txt if $dur < 1;
     return "${dur}d$txt";
-}}}
+}
 
 
 # is_repo DIR → BOOL
@@ -177,24 +177,24 @@ sub duration_str {{{
 # Check if the given directory is inside a git repository by looking for a
 # .git directory, either in the directory itself or one of its parents.
 # 
-sub is_repo {{{
+sub is_repo {
     my $dir = shift || die "is_repo missing directory ✗ stopping";
     $dir =~ s/\/$//;
     do {
         return 1 if -d "$dir/.git";
     } while ($dir =~ s/\/[^\/]*$//);
     return 0;
-}}}
+}
 
 
 # uniq ARGS... → LIST
 # 
 # Uniquify the argument list, returning a list without any duplicates.
 # 
-sub uniq {{{
+sub uniq {
     my %seen;
     $seen{$_}++ for @_;
     return keys %seen;
-}}}
+}
 #}}}
 
