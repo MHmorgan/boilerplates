@@ -793,16 +793,6 @@ Uninstall most of the things that Rogu knows how to handle.
 =back
 
 
-=item B<uninstall>
-
-=back
-
-
-=item B<doctor>
-
-=back
-
-
 =head1 OPTIONS
 
 =over 8
@@ -811,8 +801,6 @@ Uninstall most of the things that Rogu knows how to handle.
 =item B<--help>
 
 Print a brief help message and exits.
-
-=back
 
 
 =item B<--man>
