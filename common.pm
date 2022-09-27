@@ -100,7 +100,7 @@ sub affirmative {
 sub header {
     my $txt = "@_";
     my $border = '=' x (length $txt);
-    print bold "\n$txt\n$border\n\n";
+    say bold "\n$txt\n$border\n";
 }
 
 #}}}
