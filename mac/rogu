@@ -347,13 +347,13 @@ sub config {
 # structure.
 #
 sub conf_read {{{
+    my ($fname) = @_;
 
     my $text;
-    my $fname = shift;
-    open(my $cfile, "<", $fname) or die qq(opening "$fname": $!); 
+    open(my $cfile, "<", $fname) or die qq(opening "$fname": $!);
     while (<$cfile>) {
         # Skip empty lines and comments
-        next if /^(#.*|\s*)$/;
+        next if /^(#(?!!).*|\s*)$/;
         # Remove leading whitespace and escaped newlines
         s/\\\n//g;
         $text .= $_;
