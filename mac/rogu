@@ -68,7 +68,7 @@ sub trim { shift =~ s/^\s+|\s+$//gr }
 # Have a user select values of a list, returning
 # the modified list.
 #
-sub list_select {{{
+sub list_select {
     my ($desc, @values) = @_;
     #
     # Fill temporary file with list.
@@ -96,7 +96,7 @@ sub list_select {{{
     close $fh;
     unlink $tmp_file;
     return @new_values;
-}}}
+}
 
 sub run {
     my $cmd = shift;
@@ -167,7 +167,7 @@ sub inst_setup {
 }
 
 
-sub inst_oh_my_zsh {{{
+sub inst_oh_my_zsh {
     inst_setup "Oh-my-zsh";
     if ( -d "$HOME/.oh-my-zsh" ) {
         good "Already installed!";
@@ -175,7 +175,7 @@ sub inst_oh_my_zsh {{{
     }
     run 'sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"'
         or die "Oh no!\n";
-}}}
+}
 
 
 sub inst_dotfiles {
@@ -346,7 +346,7 @@ sub config {
 # Read and parse the given file into the user configuration data
 # structure.
 #
-sub conf_read {{{
+sub conf_read {
     my ($fname) = @_;
 
     my $text;
@@ -388,13 +388,13 @@ sub conf_read {{{
     }
 
     return %conf;
-}}}
+}
 
 # conf_print CONF
 #
 # Print the given user config data structure.
 #
-sub conf_print {{{
+sub conf_print {
     my ($conf) = @_;
 
     if (!$conf) {
@@ -415,14 +415,14 @@ sub conf_print {{{
             }
         }
     }
-}}}
+}
 
 # conf_validate CONF
 #
 # Validates the sections and subsections of the given user
 # configuration data.
 #
-sub conf_validate {{{
+sub conf_validate {
     my ($conf) = @_;
 
     my %sections = (
@@ -456,7 +456,7 @@ sub conf_validate {{{
             }
         }
     }
-}}}
+}
 #}}}
 
 
