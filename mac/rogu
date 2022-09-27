@@ -529,7 +529,7 @@ sub doc_dotfiles {
     } else {
         say bold "Repo Status:";
         system "$git status";
-        say yellow "Cannot update dirty dotfiles.\n";
+        say yellow "Cannot update dirty dotfiles ⛔️";
     }
 }
 
@@ -664,8 +664,6 @@ sub conf_print {
     }
 }
 
-# conf_validate CONF
-#
 # Validates the sections and subsections of the given user
 # configuration data.
 #
@@ -675,7 +673,7 @@ sub conf_validate {
     my %sections = (
         Get         => [ 'DIR', 'DATA' ],
         Install     => [ 'DIR', 'DATA', 'CHECK' ],
-        Homebrew    => [ 'DIR', 'DATA' ]
+        Homebrew    => [ 'DATA' ]
     );
 
     for my $sec_name (keys %{$conf}) {
@@ -685,22 +683,20 @@ sub conf_validate {
         # Validate section type.
         #
         unless (exists $sections{$sec_type}) {
-            err qq(Unknown section type "$sec_type" in [$sec_name]);
+            say red qq/($sec_name) Unknown section type "$sec_type"/;
             next;
         }
         #
         # Validate subsections.
         #
-        while (my ($sub_name, $val) = each %{$conf->{$sec_name}}) {
-            # Valid subsection name.
-            unless(grep /$sub_name/, @{$sections{$sec_type}}) {
-                err qq(Invalid subsection "$sub_name" in [$sec_name]);
-            }
-            # Directories exists.
-            elsif ($sub_name eq 'DIR') {
-                err qq(Workdir not found "$val" for [$sec_name])
-                    unless -d $val;
-            }
+        my %sec_cnt;
+        $sec_cnt{$_} += 1 for @{$sections{$sec_type}};
+        $sec_cnt{$_} -= 1 for keys %{$conf->{$sec_name}};
+        while (my ($sec, $cnt) = each %sec_cnt) {
+            say yellow qq/($sec_name) Missing subsection "$sec"/
+                if $cnt == 1;
+            say yellow qq/($sec_name) Unknown subsection "$sec"/
+                if $cnt == -1;
         }
     }
 }
