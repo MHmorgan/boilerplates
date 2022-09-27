@@ -9,6 +9,9 @@
 # 
 # Personal assistant on mac systems.
 
+# TODO:
+# - Track history in DATA
+
 use 5.30.0;
 use utf8;
 use warnings;
@@ -39,17 +42,34 @@ our $USER_CONF_FILE = "$CONF_DIR/rogu.conf";
 our $APP_DATA_FILE  = "$CONF_DIR/data";
 
 #
+# Oh-my-zsh parameters
+#
+our $OHMY_SCRIPT_URL = "https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh";
+our $OHMY_DIR        = "$HOME/.oh-my-zsh";
+
+#
 # Dotfiles parameters
 #
-our $DOT_REPO   = "https://github.com/MHmorgan/dotfiles-mac";
+our $DOT_REPO   = "https://github.com/MHmorgan/dotfiles-mac.git";
 our $DOT_DIR    = "$HOME/.dotfiles";
 our $DOT_BRANCH = "main";
+
+#
+# Unified naming of common steps
+#
+our $TITLE_OH_MY_ZSH       = 'Oh-my-zsh 🖥';
+our $TITLE_DOTFILES        = 'Dotfiles ⚙️';
+our $TITLE_HOMEBREW        = 'Homebrew 🍺';
+our $TITLE_BREW_APPS       = 'Brew-apps 🍻';
+our $TITLE_GET_TARGETS     = 'Get-targets 🔧';
+our $TITLE_INSTALL_TARGETS = 'Install-targets 🔧';
 
 #
 # Other global parameters
 #
 our $DEFAULT_EDITOR = 'vi';
 our $DEFAULT_PAGER  = 'less';
+
 
 
 ################################################################################
@@ -108,6 +128,65 @@ sub run {
 
 
 ################################################################################
+# Oh-my-zsh
+#{{{
+
+
+# Return the root directory for the Oh-my-zsh installation
+# or undef if it cannot be found.
+#
+sub ohmy_root { -d $OHMY_DIR ? $OHMY_DIR : undef }
+
+
+# Return a list of all custom plugins/themes for Oh-my-zsh.
+#
+sub ohmy_custom {
+    my @vals;
+    my $root = ohmy_root() // return @vals;
+    chdir "$root/custom" || die $!;
+
+    while (<plugins/* themes/*>) {
+        next if /example/;
+        push @vals, $_;
+    }
+    return @vals;
+}
+#}}}
+
+
+################################################################################
+# Dotfiles
+#{{{
+
+
+# Return the root directory for the dotfiles repo, or undef
+# if it cannot be found.
+#
+sub dot_root { -d $DOT_DIR ? $DOT_DIR : undef }
+
+
+# Return the git command needed to interact with the
+# dotfiles repo.
+#
+sub dot_git {
+    my $root = dot_root() // return undef;
+    return "git --git-dir=$root --work-tree=$HOME";
+}
+
+
+# Return a list of all tracked dotfiles.
+#
+sub dot_files {
+    my @files;
+    my $git = dot_git() // return @files;
+    chdir() or die $?;
+    chomp(@files = qx{ $git ls-tree -r --name-only $DOT_BRANCH });
+    return @files;
+}
+#}}}
+
+
+################################################################################
 # Install
 #
 # The installation does the following:
@@ -123,100 +202,84 @@ sub install {
     qx{ which git } or die "Git is not installed!\n";
     qx{ which zsh } or die "Zsh is not installed!\n";
 
-    my @steps = qw(
-        Oh-my-zsh
+    my @steps = (
+        $TITLE_OH_MY_ZSH,
+        $TITLE_DOTFILES,
     );
     @steps = list_select "Remove any installation steps to skip.", @steps;
 
-    if (grep /Oh-my-zsh/, @steps) {
-        inst_oh_my_zsh();
+    my $run_step = sub {
+        my ($name, $func) = @_;
+        return unless grep /$name/, @steps;
+        header $name;
         sleep 1;
-    }
-    if (grep /Dotfiles/, @steps) {
-        inst_dotfiles();
+        &$func();
+        print "\n";
         sleep 1;
-    }
-    if (grep /Homebrew/, @steps) {
-        inst_homebrew();
-        sleep 1;
-    }
-    if (grep /Brew-apps/, @steps) {
-        inst_brew_apps();
-        sleep 1;
-    }
-    if (grep /Get-targets/, @steps) {
-        inst_get_targets();
-        sleep 1;
-    }
-    if (grep /Install-targets/, @steps) {
-        inst_install_targets();
-        sleep 1;
-    }
+    };
+
+    &$run_step($TITLE_OH_MY_ZSH,        \&inst_oh_my_zsh);
+    &$run_step($TITLE_DOTFILES,         \&inst_dotfiles);
+    &$run_step($TITLE_HOMEBREW,         \&inst_homebrew);
+    &$run_step($TITLE_BREW_APPS,        \&inst_brew_apps);
+    &$run_step($TITLE_GET_TARGETS,      \&inst_get_targets);
+    &$run_step($TITLE_INSTALL_TARGETS,  \&inst_install_targets);
 }
 
 
-# inst_setup NAME
+# Install Oh My Zsh, unless it is already installed.
 #
-# Common setup for all the different installation
-# steps.
-#
-sub inst_setup {
-    header shift;
-    chdir () or die $!;
-    sleep 1;
-}
-
-
 sub inst_oh_my_zsh {
-    inst_setup "Oh-my-zsh";
-    if ( -d "$HOME/.oh-my-zsh" ) {
+    if (defined ohmy_root) {
         good "Already installed!";
         return;
     }
-    run 'sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"'
+
+    chdir() or die $!;
+    run qq(sh -c "RUNZSH=no \$(curl -fsSL $OHMY_SCRIPT_URL)")
         or die "Oh no!\n";
+
+    unless (defined ohmy_root) {
+        err "Oh-my-zsh installation not found by Rogu ⚠️";
+    }
+
+    my $backup = '.zshrc.pre-oh-my-zsh';
+    if (-e $backup) {
+        info qq(Looks like oh-my-zsh has moved your ".zshrc" to "$backup");
+        run "mv $backup .zshrc" if confirm "Do you want to undo this?";
+    }
+
+    good affirmative;
 }
 
 
 sub inst_dotfiles {
-    inst_setup "Dotfiles";
-    if (-d ".dotfiles") {
+    if (defined dot_root) {
         good "Already installed!";
         return;
     }
-    #TODO
-    
-    my $dotcmd = "git --git-dir=$::HOME/.dotfiles --work-tree=$::HOME";
 
-    run "git clone --bare $::DOT_REPO $::DOT_DIR"
-        or die "Oh no!\n";
+    chdir() or die $!;
+    run "git clone --bare $DOT_REPO $DOT_DIR" or die "Oh no!\n";
 
-    info "Creating backup of existing dotfiles.";
-    my @dotfiles = qx{ $dotcmd ls-tree --name-only -r $::DOT_BRANCH };
-    for (@dotfiles) {
-        say "$_ → $_~";
-        rename $_, "$_~";
+    info "Creating backup of any existing dotfiles...";
+    for (dot_files) {
+        run "mv $_ $_~" if -e;
     }
 
-    info "Finishing setup...";
-    run "$dotcmd checkout $::DOT_BRANCH"
-        or die "Oh no!\n";
-    run "$dotcmd config branch.$::DOT_BRANCH.remote origin"
-        or die "Oh no!\n";
-    run "$dotcmd config branch.$::DOT_BRANCH.merge refs/heads/$::DOT_BRANCH"
-        or die "Oh no!\n";
+    my $git = dot_git;
+    run "$git checkout $DOT_BRANCH" or die "Oh no!\n";
+    run "$git config branch.$DOT_BRANCH.remote origin";
+    run "$git config branch.$DOT_BRANCH.merge refs/heads/$DOT_BRANCH";
 }
 
 
 sub inst_homebrew {
-    inst_setup "Homebrew";
     #TODO
 }
 
 
 sub inst_brew_apps {
-    inst_setup "Homebrew Applications";
-
     my $data = $::CONF{'Homebrew Apps'}{'DATA'}
         // [ "# (No Homebrew apps defined in user config)" ];
 
@@ -230,13 +293,11 @@ sub inst_brew_apps {
 
 
 sub inst_get_targets {
-    inst_setup "Get Targets";
     #TODO
 }
 
 
 sub inst_install_targets {
-    inst_setup "Install Targets";
     #TODO
 }
 #}}}
@@ -249,46 +310,68 @@ sub inst_install_targets {
 # operations does.
 #
 #{{{
-#TODO
 
 sub uninstall {
-    qx{ which git } or die "Git is not installed!\n";
-    qx{ which zsh } or die "Zsh is not installed!\n";
-
-    my @steps = qw(
-        Oh-my-zsh
+    my @steps = (
+        $TITLE_OH_MY_ZSH,
+        $TITLE_DOTFILES,
     );
     @steps = list_select "Remove any uninstallation steps to skip.", @steps;
 
-    if (grep /Oh-my-zsh/, @steps) {
-        unin_oh_my_zsh();
+    my $run_step = sub {
+        my ($name, $func) = @_;
+        return unless grep /$name/, @steps;
+        header $name;
         sleep 1;
-    }
-    #if (grep /Dotfiles/, @steps) {
-    #    unin_dotfiles();
-    #    sleep 1;
-    #}
-    #if (grep /Homebrew/, @steps) {
-    #    unin_homebrew();
-    #    sleep 1;
-    #}
-    #if (grep /Brew-apps/, @steps) {
-    #    unin_brew_apps();
-    #    sleep 1;
-    #}
-    #if (grep /Get-targets/, @steps) {
-    #    unin_get_targets();
-    #    sleep 1;
-    #}
-    #if (grep /Install-targets/, @steps) {
-    #    unin_install_targets();
-    #    sleep 1;
-    #}
+        &$func();
+        print "\n";
+        sleep 1;
+    };
+
+    &$run_step($TITLE_OH_MY_ZSH,        \&unin_oh_my_zsh);
+    &$run_step($TITLE_DOTFILES,         \&unin_dotfiles);
+    # &$run_step($TITLE_HOMEBREW,         \&unin_homebrew);
+    # &$run_step($TITLE_BREW_APPS,        \&unin_brew_apps);
+    # &$run_step($TITLE_GET_TARGETS,      \&unin_get_targets);
+    # &$run_step($TITLE_INSTALL_TARGETS,  \&unin_install_targets);
 }
 
+
 sub unin_oh_my_zsh {
-    #TODO
+    my $root = ohmy_root()
+        // die "Oh-my-zsh is not installed ⚠️\n";
+
+    my @custom = ohmy_custom;
+    if (@custom) {
+        warn "You have custom plugins/themes\n";
+        say " - $_" for @custom;
+        return if confirm "Abort uninstallation of oh-my-zsh?";
+    }
+
+    run "rm -rf $root" or die "Oh no!";
+
+    good affirmative;
 }
+
+
+sub unin_dotfiles {
+    my $root = dot_root()
+        // die "Dotfiles is not installed ⚠️";
+    my @dotfiles = dot_files;
+
+    run "rm -rf $root" or die "Oh no!\n";
+
+    if (@dotfiles) {
+        info "Found " . scalar @dotfiles . " tracked dotfiles.";
+        say for @dotfiles;
+        if (confirm "Do you want to delete these?") {
+            run "rm $_" for @dotfiles;
+        }
+    }
+
+    good affirmative;
+}
+
 
 sub unin_homebrew {
     confirm yellow "Are you suuure you want to uninstall Homebrew?"
@@ -310,7 +393,104 @@ sub unin_brew_apps {
 ################################################################################
 # Doctor
 #{{{
-#TODO
+
+sub doctor {
+    my $run_step = sub {
+        my ($name, $func) = @_;
+        header $name;
+        sleep 1;
+        &$func();
+        print "\n";
+        sleep 1;
+    };
+
+    &$run_step($TITLE_OH_MY_ZSH,        \&doc_oh_my_zsh);
+    &$run_step($TITLE_DOTFILES,         \&doc_dotfiles);
+    # &$run_step($TITLE_HOMEBREW,         \&doc_homebrew);
+    # &$run_step($TITLE_BREW_APPS,        \&doc_brew_apps);
+    # &$run_step($TITLE_GET_TARGETS,      \&doc_get_targets);
+    # &$run_step($TITLE_INSTALL_TARGETS,  \&doc_install_targets);
+}
+
+
+sub doc_oh_my_zsh {
+    #
+    # Is install script URL valid?
+    #
+    my $script_head = qx{ curl -sSL --head $OHMY_SCRIPT_URL };
+    if ($script_head =~ /HTTP.. 2\d\d/) {
+        info "Install script URL is valid.";
+    } else {
+        bad "Install script URL is invalid.";
+        say "HEAD $script_head";
+        say $script_head;
+    }
+    #
+    # Is oh-my-zsh installed?
+    #
+    my $root = ohmy_root;
+    unless (defined $root) {
+        bad "Oh-my-zsh isn't installed 👎";
+        return;
+    }
+    good "Oh-my-zsh is installed 👍";
+    info "Location: $root";
+    #
+    # List custom plugins/themes.
+    #
+    my @custom = ohmy_custom;
+    if (@custom) {
+        info "You have " . scalar @custom . " custom plugins/themes:";
+        say " - $_" for @custom;
+    }
+}
+
+
+sub doc_dotfiles {
+    #
+    # Is repo URL valid?
+    #
+    my $repo_head = qx{ curl -sSL --head $DOT_REPO };
+    if ($repo_head =~ /HTTP.. 2\d\d/) {
+        info "Dotfiles repo URL is valid.";
+    } else {
+        bad "Dotfiles repo URL is invalid.";
+        say "HEAD $DOT_REPO";
+        say $repo_head;
+    }
+    #
+    # Is dotfiles installed?
+    #
+    my $root = dot_root;
+    unless (defined $root) {
+        bad "Dotfiles isn't installed 👎";
+        return;
+    }
+    good "Dotfiles is installed 👍";
+    info "Location: $root";
+    #
+    # List dotfiles
+    #
+    my @dotfiles = dot_files;
+    info "Tracking " . scalar @dotfiles . " dotfiles.";
+    say bold "Dotfiles";
+    say for @dotfiles;
+    #
+    # Git status/update
+    #
+    chdir() or die $!;
+    my $git = dot_git;
+    my $status = qx{ $git status --short };
+    if ($status eq '') {
+        info "Dotfiles are clean (no modifications).";
+        say bold "Updating dotfiles repo";
+        system "$git pull";
+    } else {
+        say bold "Repo Status:";
+        system "$git status";
+        warn "Cannot update dirty dotfiles.\n";
+    }
+}
 #}}}
 
 
@@ -481,6 +661,11 @@ dbmopen(our %DATA, $APP_DATA_FILE, 0644);
 our %CONF;
 %CONF = conf_read $USER_CONF_FILE if -f $USER_CONF_FILE;
 
+# Rogu is only intended to be used interactively, so
+# don't bother with using both STDERR and STDOUT.
+# The output shouldn't be redirected anyway.
+set_log_out(*STDOUT);
+
 my $MAN = 0;
 my $HELP = 0;
 my $DEBUG = 0;
@@ -494,8 +679,11 @@ pod2usage( -verbose  => 99, -sections => "SYNOPSIS|Commands|OPTIONS")
 
 my $CMD = shift;
 my $ARGS = join '", "', @ARGV;
-my $RES = eval "$CMD(\"$ARGS\")";
-say $RES if $DEBUG && $RES;
+my @RES = eval "$CMD(\"$ARGS\")";
+if ($DEBUG && @RES) {
+    use Data::Dumper;
+    say Dumper(@RES);
+}
 #}}}
 
 
