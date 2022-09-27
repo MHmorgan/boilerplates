@@ -112,7 +112,7 @@ sub header {
 # 
 sub input {
     my ($prompt) = @_;
-    print $prompt;
+    print italic($prompt);
     chomp(my $in = <STDIN>);
     $in
 }
