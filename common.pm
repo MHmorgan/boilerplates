@@ -135,6 +135,15 @@ sub confirm {
 	$line =~ /n(o|ei?)?/i ? 0 : 1
 }
 
+
+# Ask the user "Ok?", returning true if the user answers
+# anything else than no.
+#
+sub ok {
+    chomp(my $line = input("Ok? "));
+    $line =~ /n(o|ei?)?/i ? 0 : 1
+}
+
 #}}}
 
 ################################################################################
