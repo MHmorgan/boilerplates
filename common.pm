@@ -79,7 +79,7 @@ sub bad  { logsay red   "[✗] @_" }
 # Printing
 #{{{
 
-# Print a random affirmatie word to inspire the user. Just for fun ☆
+# Returns a random affirmative/inspiring word.
 #
 sub affirmative {
     my @words = (
@@ -89,8 +89,7 @@ sub affirmative {
         "Marvelous", "Nice", "Right", "Sensational", "Sweet",
 		"Terrific", "Unique ",
     );
-    my $word = $words[rand @words];
-    print "$word ✓\n";
+    return $words[rand @words];
 }
 
 
