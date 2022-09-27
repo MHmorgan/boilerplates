@@ -10,7 +10,8 @@
 # Personal assistant on mac systems.
 
 # TODO:
-# - Track history in DATA
+# - Track call history in DATA
+# - Add self update functionality
 
 use 5.30.0;
 use utf8;
@@ -457,9 +458,9 @@ sub doc_oh_my_zsh {
     #
     my $script_head = qx{ curl -sSL --head $OHMY_SCRIPT_URL };
     if ($script_head =~ /HTTP.. 2\d\d/) {
-        info "Install script URL is valid.";
+        say "Install script URL is valid.";
     } else {
-        bad "Install script URL is invalid.";
+        say red "Install script URL is invalid 🚫";
         say "HEAD $script_head";
         say $script_head;
     }
@@ -468,17 +469,17 @@ sub doc_oh_my_zsh {
     #
     my $root = ohmy_root;
     unless (defined $root) {
-        bad "Oh-my-zsh isn't installed 👎";
+        say red "Oh-my-zsh isn't installed 👎";
         return;
     }
-    good "Oh-my-zsh is installed 👍";
-    info "Location: $root";
+    say green "Oh-my-zsh is installed 👍";
+    say "Location: $root";
     #
     # List custom plugins/themes.
     #
     my @custom = ohmy_custom;
     if (@custom) {
-        info "You have " . scalar @custom . " custom plugins/themes:";
+        say "You have " . scalar @custom . " custom plugins/themes:";
         say " - $_" for @custom;
     }
 }
@@ -490,9 +491,9 @@ sub doc_dotfiles {
     #
     my $repo_head = qx{ curl -sSL --head $DOT_REPO };
     if ($repo_head =~ /HTTP.. 2\d\d/) {
-        info "Dotfiles repo URL is valid.";
+        say "Dotfiles repo URL is valid.";
     } else {
-        bad "Dotfiles repo URL is invalid.";
+        say red "Dotfiles repo URL is invalid 🚫";
         say "HEAD $DOT_REPO";
         say $repo_head;
     }
@@ -501,18 +502,20 @@ sub doc_dotfiles {
     #
     my $root = dot_root;
     unless (defined $root) {
-        bad "Dotfiles isn't installed 👎";
+        say red "Dotfiles isn't installed 👎";
         return;
     }
-    good "Dotfiles is installed 👍";
-    info "Location: $root";
+    say green "Dotfiles is installed 👍";
+    say "Location: $root";
     #
     # List dotfiles
     #
     my @dotfiles = dot_files;
-    info "Tracking " . scalar @dotfiles . " dotfiles.";
-    say bold "Dotfiles";
-    say for @dotfiles;
+    say "Tracking " . scalar @dotfiles . " dotfiles.";
+    if (@dotfiles) {
+        say bold "Dotfiles";
+        say for @dotfiles;
+    }
     #
     # Git status/update
     #
@@ -520,13 +523,13 @@ sub doc_dotfiles {
     my $git = dot_git;
     my $status = qx{ $git status --short };
     if ($status eq '') {
-        info "Dotfiles are clean (no modifications).";
+        say "Dotfiles are clean (no modifications).";
         say bold "Updating dotfiles repo";
         system "$git pull";
     } else {
         say bold "Repo Status:";
         system "$git status";
-        warn "Cannot update dirty dotfiles.\n";
+        say yellow "Cannot update dirty dotfiles.\n";
     }
 }
 
@@ -537,11 +540,11 @@ sub doc_homebrew {
     #
     chomp(my $exec = qx{ command -v brew });
     if ($exec eq '') {
-        bad "Homebrew isn't installed 👎";
+        say red "Homebrew isn't installed 👎";
         return;
     }
-    good "Homebrew is installed 👍";
-    info "Executable location: $exec";
+    say green "Homebrew is installed 👍";
+    say "Executable location: $exec";
     #
     # Homebrew's environment variable.
     #
