@@ -215,6 +215,12 @@ sub dot_files {
 
 
 ################################################################################
+# Homebrew
+#{{{
+#}}}
+
+
+################################################################################
 # Install
 #
 # The installation does the following:
@@ -303,7 +309,7 @@ sub inst_dotfiles {
 
 
 sub inst_homebrew {
-    #TODO
+    #TODO When I get a new mac ❗️
 }
 
 
@@ -316,7 +322,8 @@ sub inst_brew_apps {
         @{$data}
     );
     say join "\n", @apps;
-    #TODO
+
+    #TODO When I get a new mac ❗️
 }
 
 
@@ -358,8 +365,8 @@ sub uninstall {
 
     &$run_step($TITLE_OH_MY_ZSH,        \&unin_oh_my_zsh);
     &$run_step($TITLE_DOTFILES,         \&unin_dotfiles);
-    # &$run_step($TITLE_HOMEBREW,         \&unin_homebrew);
-    # &$run_step($TITLE_BREW_APPS,        \&unin_brew_apps);
+    &$run_step($TITLE_HOMEBREW,         \&unin_homebrew);
+    &$run_step($TITLE_BREW_APPS,        \&unin_brew_apps);
     # &$run_step($TITLE_GET_TARGETS,      \&unin_get_targets);
     # &$run_step($TITLE_INSTALL_TARGETS,  \&unin_install_targets);
 }
@@ -406,14 +413,17 @@ sub unin_homebrew {
         or return;
     confirm yellow bold "Are you 100% absolutely definetly positively sure you want to uninstall Homebrew?"
         or return;
-    #TODO
+
+    #TODO When I get a new mac ❗️
 }
+
 
 sub unin_brew_apps {
     my @apps;
     confirm yellow "Are you completely sure you want to uninstall Homebrew applications?"
         or return;
-    #TODO
+
+    #TODO When I get a new mac ❗️
 }
 #}}}
 
@@ -434,7 +444,7 @@ sub doctor {
 
     &$run_step($TITLE_OH_MY_ZSH,        \&doc_oh_my_zsh);
     &$run_step($TITLE_DOTFILES,         \&doc_dotfiles);
-    # &$run_step($TITLE_HOMEBREW,         \&doc_homebrew);
+    &$run_step($TITLE_HOMEBREW,         \&doc_homebrew);
     # &$run_step($TITLE_BREW_APPS,        \&doc_brew_apps);
     # &$run_step($TITLE_GET_TARGETS,      \&doc_get_targets);
     # &$run_step($TITLE_INSTALL_TARGETS,  \&doc_install_targets);
@@ -519,6 +529,32 @@ sub doc_dotfiles {
         warn "Cannot update dirty dotfiles.\n";
     }
 }
+
+
+sub doc_homebrew {
+    #
+    # Is installed?
+    #
+    chomp(my $exec = qx{ command -v brew });
+    if ($exec eq '') {
+        bad "Homebrew isn't installed 👎";
+        return;
+    }
+    good "Homebrew is installed 👍";
+    info "Executable location: $exec";
+    #
+    # Homebrew's environment variable.
+    #
+    say bold "Variables";
+    chomp(my @vars = qx{ env });
+    say for grep /HOMEBREW/, @vars;
+    #
+    # Homebrew information
+    #
+    say bold "Information";
+    system "brew info";
+    system "brew update";
+}
 #}}}
 
 
@@ -546,7 +582,7 @@ sub config {
     $_ = shift || die "Missing subcommand ✗\n";
     return conf_print(\%::CONF)    if /print/;
     return conf_validate(\%::CONF) if /validate/;
-    die "Unknown subcommand: $_ ✗\n";
+    die "Unknown subcommand: $_ 🚫\n";
 }
 
 # conf_read FILE_NAME
@@ -635,7 +671,7 @@ sub conf_validate {
 
     my %sections = (
         Get         => [ 'DIR', 'DATA' ],
-        Install     => [ 'DIR', 'RUN', 'CHECK' ],
+        Install     => [ 'DIR', 'DATA', 'CHECK' ],
         Homebrew    => [ 'DIR', 'DATA' ]
     );
 
@@ -732,9 +768,25 @@ rogu [options] <command> [args...]
 
 =over 8
 
-=item B<conf> <cmd>
+=item B<config> <cmd>
 
-Configuration stuff.
+User configuration actions.
+
+Subcommands: print, validate.
+
+=item B<doctor>
+
+Run an sanity check of everything Rogu knows about on the
+system. This is mostly a passive action, but not completely.
+
+=item B<install>
+
+Install everything needed to use the system (at least
+everything Rogu knows about).
+
+=item B<uninstall>
+
+Uninstall most of the things that Rogu knows how to handle.
 
 =back
 
