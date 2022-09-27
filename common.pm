@@ -79,8 +79,6 @@ sub bad  { logsay red   "[✗] @_" }
 # Printing
 #{{{
 
-# affirmative
-#
 # Print a random affirmatie word to inspire the user. Just for fun ☆
 #
 sub affirmative {
@@ -96,8 +94,6 @@ sub affirmative {
 }
 
 
-# header ARG...
-#
 # Print a header text with border with bold formatting.
 # The formatting is removed if STDOUT isn't a terminal.
 #
@@ -113,25 +109,22 @@ sub header {
 # User input
 #{{{
 
-# input PROMPT → STR
-# 
 # Ask the user for a single line input with the PROMPT text.
 # 
 sub input {
-    my $prompt = shift;
+    my ($prompt) = @_;
     print $prompt;
     chomp(my $in = <STDIN>);
     $in
 }
 
 
-# confirm PROMPT → BOOL
-# 
-# Ask the user to confirm the PROMPT question. " (Y/n)" is appended to the text.
+# Ask the user to confirm the PROMPT question. " (Y/n) " is appended to the text.
+# Returns true if the user answers anything else than no.
 # 
 sub confirm {
-    my $prompt = shift;
-    my $line = input($prompt . " (Y/n)");
+    my ($prompt) = @_;
+    my $line = input($prompt . " (Y/n) ");
 	$line =~ /n(o|ei?)?/i ? 0 : 1
 }
 
@@ -140,7 +133,7 @@ sub confirm {
 # anything else than no.
 #
 sub ok {
-    chomp(my $line = input("Ok? "));
+    my $line = input("Ok? ");
     $line =~ /n(o|ei?)?/i ? 0 : 1
 }
 
@@ -150,19 +143,15 @@ sub ok {
 # Misc
 #{{{
 
-# cmd_exists CMD → BOOL
-# 
 # Check if the given shell command exists.
 # 
 sub cmd_exists {
-    my $cmd = shift;
+    my ($cmd) = @_;
     my $res = system "which $cmd &>/dev/null";
     $res == 0
 }
 
 
-# duration_str NUM → STR
-# 
 # Format a duration. Input is number of seconds (float or int doesn't matter).
 # The output format is a simple and compact.
 # 
@@ -181,13 +170,11 @@ sub duration_str {
 }
 
 
-# is_repo DIR → BOOL
-# 
 # Check if the given directory is inside a git repository by looking for a
 # .git directory, either in the directory itself or one of its parents.
 # 
 sub is_repo {
-    my $dir = shift || die "is_repo missing directory ✗ stopping";
+    my ($dir) = @_;
     $dir =~ s/\/$//;
     do {
         return 1 if -d "$dir/.git";
@@ -196,8 +183,6 @@ sub is_repo {
 }
 
 
-# uniq ARGS... → LIST
-# 
 # Uniquify the argument list, returning a list without any duplicates.
 # 
 sub uniq {
