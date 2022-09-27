@@ -395,15 +395,16 @@ sub conf_read {{{
 # Print the given user config data structure.
 #
 sub conf_print {{{
-    my $conf = shift;
+    my ($conf) = @_;
 
     if (!$conf) {
         say "<empty config>";
         return
     }
 
-    while (my ($name, $sect) = each %{$conf}) {
+    for my $name (sort keys %{$conf}) {
         header $name;
+        my $sect = $conf->{$name};
         for (keys %{$sect}) {
             say bold "$_:";
             my $val = $sect->{$_};
