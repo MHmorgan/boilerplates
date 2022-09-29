@@ -329,10 +329,30 @@ sub conf_validate {
 }
 
 
+# Return a hash which maps filepaths to URLs for all entries
+# in the Get targets in the user configuration.
+#
+sub conf_get_files {
+    my %files;
+    while (my ($section, $content) = each %::CONF) {
+        next unless $section =~ /^Get /;
+        my $dir = $content->{DIR} // $HOME;
+        my @data = @{$content->{DATA}};
+        for (@data) {
+            /^(\S+)(\s+\((.*?)\))?/;
+            my $url = $1;
+            my $name = $3 // $url =~ s/.*\///r;
+            $files{"$dir/$name"} = $url;
+        }
+    }
+    return %files;
+}
+
+
 # Run the CHECK command for a given target, returning true
 # if the check passes.
 #
-sub conf_run_check {
+sub conf_install_check {
     my ($name) = @_;
     unless (exists $::CONF{$name}) {
         die "Target [$name] not found";
@@ -611,7 +631,7 @@ sub doctor {
     &$run_step($TITLE_DOTFILES,         \&doc_dotfiles);
     &$run_step($TITLE_HOMEBREW,         \&doc_homebrew);
     # &$run_step($TITLE_BREW_APPS,        \&doc_brew_apps);
-    # &$run_step($TITLE_GET_TARGETS,      \&doc_get_targets);
+    &$run_step($TITLE_GET_TARGETS,      \&doc_get_targets);
     &$run_step($TITLE_INSTALL_TARGETS,  \&doc_install_targets);
 }
 
@@ -723,14 +743,32 @@ sub doc_homebrew {
 }
 
 
+sub doc_get_targets {
+    my %files = conf_get_files;
+    for (sort keys %files) {
+        if ( -f ) {
+            say green "Installed: $_";
+        } else {
+            say yellow "Not installed: $_"
+        }
+    }
+    for (sort values %files) {
+        my $head = qx{ curl -sSL --head $_ };
+        unless ($head =~ /HTTP.. 2\d\d/) {
+            say yellow "Invalid URL: $_";
+        }
+    }
+}
+
+
 sub doc_install_targets {
     my @targets = grep /^Install/, keys %::CONF;
     for (@targets) {
-        my $installed = conf_run_check $_;
+        my $installed = conf_install_check $_;
         if ($installed) {
-            say green qq(Installed: [$_] 👍);
+            say green qq(Installed: [$_]);
         } else {
-            say yellow qq(Not installed: [$_] 👎);
+            say yellow qq(Not installed: [$_]);
         }
     }
 }
