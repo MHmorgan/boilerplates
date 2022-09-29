@@ -19,6 +19,8 @@ use warnings;
 use open qw(:std :utf8);
 use strict;
 
+use Time::HiRes qw( usleep );
+
 use Getopt::Long;
 use Pod::Usage;
 
@@ -599,10 +601,10 @@ sub doctor {
     my $run_step = sub {
         my ($name, $func) = @_;
         header $name;
-        sleep 1;
+        usleep 400_000;
         &$func();
         print "\n";
-        sleep 1;
+        usleep 1_600_000;
     };
 
     &$run_step($TITLE_OH_MY_ZSH,        \&doc_oh_my_zsh);
