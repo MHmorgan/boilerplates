@@ -81,7 +81,7 @@ our $DEFAULT_PAGER  = 'less';
 #
 # Remove any leading and trailing whitespace
 #
-sub trim { shift =~ s/^\s+|\s+$//gr }
+sub trim { my ($str) = @_; $str =~ s/^\s+|\s+$//gr }
 
 
 # Return true if the user has sudo privileges.
@@ -132,6 +132,21 @@ sub run {
     say "[>] $cmd";
     system $cmd;
     return $? == 0;
+}
+
+
+# Get a file from the given URL, caching it locally and
+# returning the path to the cached file.
+#
+sub cache_file {
+    my ($url) = @_;
+    my $name = $url =~ s/[\/:]+/_/rg;
+    chdir $CACHE_DIR or die $!;
+    system("curl -sSL $url -o $name") == 0
+        or die "GET $url failed";
+    my $path =  "$CACHE_DIR/$name";
+    -f $path or die "Caching $name failed";
+    return $path;
 }
 #}}}
 
