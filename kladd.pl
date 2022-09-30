@@ -1,4 +1,4 @@
-#!/usr/bin/env perl5.30
+#!/usr/bin/env perl
 
 use v5.30.0;
 use utf8;
@@ -10,7 +10,6 @@ BEGIN { push @INC, "$ENV{HOME}/lib"; }
 use open qw(:std :utf8);
 use common;
 use Getopt::Long;
-use Pod::Usage;
 
 my $EDITOR = $ENV{EDITOR} // 'nvim';
 my $DIR = "$ENV{HOME}/.local/share/kladd";
@@ -32,10 +31,11 @@ GetOptions(
     'branch|b' => \$BRANCH,
     'dir' => \$DIRECTORY,
     'ls' => \$LIST,
-    'rm' => \$REMOVE);
+    'rm' => \$REMOVE,
+);
 
 
-my $NAME = shift // "";
+my $NAME = shift;
 if ($BRANCH) {
     $NAME .= '-' if $NAME;
     $NAME .= $_BRANCH_STR;
