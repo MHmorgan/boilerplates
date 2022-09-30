@@ -37,10 +37,14 @@ GetOptions(
 
 my $NAME = shift;
 if ($BRANCH) {
+    die "Git branch not found.\n"
+        unless $_BRANCH_STR;
     $NAME .= '-' if $NAME;
     $NAME .= $_BRANCH_STR;
 }
 if ($DIRECTORY) {
+    die "Cannot make a kladd for this dir.\n"
+        unless $_DIRECTORY_STR;
     $NAME .= '-' if $NAME;
     $NAME .= $_DIRECTORY_STR;
 }
