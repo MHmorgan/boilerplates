@@ -18,6 +18,7 @@ my $_BRANCH_STR     = qx{ git symbolic-ref --quiet HEAD 2>/dev/null } =~ s/.*\//
 my $_DIRECTORY_STR  = $ENV{PWD} =~ s/.*\///r;
 chomp($_BRANCH_STR, $_DIRECTORY_STR);
 
+
 my $HELP = !(scalar @ARGV);
 my $LIST = 0;
 my $REMOVE = 0;
@@ -27,7 +28,7 @@ my $BRANCH = 0;
 
 GetOptions(
     'help|h' => \$HELP,
-    'dump|d' => \$DUMP,
+    'dump|d|print|p|cat' => \$DUMP,
     'branch|b' => \$BRANCH,
     'dir' => \$DIRECTORY,
     'ls' => \$LIST,
@@ -73,8 +74,10 @@ Usage: kladd [option] [NAME]
 Edit the named kladd.
 
 Options:
-    -rm     Remove kladd NAME.
-    -ls     List all kladder.
-    -dump   Dump the content of a kladd.
-    -branch Make the kladd unique for the current git branch.
-    -dir    Make the kladd unique for the current directory.
+    --rm    Remove kladd NAME.
+    --ls    List all kladder.
+    --dump -d
+            Dump the content of a kladd.
+    --branch -b
+            Make the kladd unique for the current git branch.
+    --dir   Make the kladd unique for the current directory.
