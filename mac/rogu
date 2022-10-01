@@ -10,7 +10,7 @@
 # Personal assistant on mac systems.
 
 # TODO future updates:
-# - Track call history in DATA
+
 # - Add self update functionality
 
 use 5.30.0;
@@ -40,13 +40,15 @@ use common;
 our $HOME       = $ENV{"HOME"};
 our $CACHE_DIR  = "$HOME/.cache/rogu";
 our $CONF_DIR   = "$HOME/.config/rogu";
+our $DATA_DIR   = "$HOME/.local/share/rogu";
 our $TMP_DIR    = "/tmp/rogu";
 
 #
 # Application files
 #
 our $USER_CONF_FILE = "$CONF_DIR/rogu.conf";
-our $APP_DATA_FILE  = "$CONF_DIR/data";
+our $APP_DATA_FILE  = "$DATA_DIR/rogu-data";
+our $APP_CACHE_FILE = "$CACHE_DIR/rogu-cache";
 
 #
 # Oh-my-zsh parameters
@@ -169,33 +171,6 @@ sub is_valid_url {
     my $url = shift;
     $_ = qx{ curl -sSL --head $url };
     /HTTP.. 2\d\d/ ? 1 : 0
-}
-#}}}
-
-
-################################################################################
-# Oh-my-zsh
-#{{{
-
-
-# Return the root directory for the Oh-my-zsh installation
-# or undef if it cannot be found.
-#
-sub ohmy_root { -d $OHMY_DIR ? $OHMY_DIR : undef }
-
-
-# Return a list of all custom plugins/themes for Oh-my-zsh.
-#
-sub ohmy_custom {
-    my @vals;
-    my $root = ohmy_root() // return @vals;
-    chdir "$root/custom" || die $!;
-
-    while (<plugins/* themes/*>) {
-        next if /example/;
-        push @vals, $_;
-    }
-    return @vals;
 }
 #}}}
 
@@ -392,6 +367,33 @@ sub conf_install_check {
 
 
 ################################################################################
+# Oh-my-zsh
+#{{{
+
+
+# Return the root directory for the Oh-my-zsh installation
+# or undef if it cannot be found.
+#
+sub ohmy_root { -d $OHMY_DIR ? $OHMY_DIR : undef }
+
+
+# Return a list of all custom plugins/themes for Oh-my-zsh.
+#
+sub ohmy_custom {
+    my @vals;
+    my $root = ohmy_root() // return @vals;
+    chdir "$root/custom" || die $!;
+
+    while (<plugins/* themes/*>) {
+        next if /example/;
+        push @vals, $_;
+    }
+    return @vals;
+}
+#}}}
+
+
+################################################################################
 # Dotfiles
 #{{{
 
@@ -463,12 +465,12 @@ sub install {
         usleep 1_000_000;
     };
 
-    &$run_step($TITLE_OH_MY_ZSH,        \&inst_oh_my_zsh);
-    &$run_step($TITLE_DOTFILES,         \&inst_dotfiles);
-    &$run_step($TITLE_HOMEBREW,         \&inst_homebrew);
-    &$run_step($TITLE_BREW_APPS,        \&inst_brew_apps);
-    &$run_step($TITLE_GET_TARGETS,      \&inst_get_targets);
-    &$run_step($TITLE_INSTALL_TARGETS,  \&inst_install_targets);
+    &$run_step($TITLE_OH_MY_ZSH, \&inst_oh_my_zsh);
+    &$run_step($TITLE_DOTFILES, \&inst_dotfiles);
+    &$run_step($TITLE_HOMEBREW, \&inst_homebrew);
+    &$run_step($TITLE_BREW_APPS, \&inst_brew_apps);
+    &$run_step($TITLE_GET_TARGETS, \&inst_get_targets);
+    &$run_step($TITLE_INSTALL_TARGETS, \&inst_install_targets);
 }
 
 
@@ -481,8 +483,7 @@ sub inst_oh_my_zsh {
     }
 
     chdir() or die $!;
-    run qq(sh -c "RUNZSH=no \$(curl -fsSL $OHMY_SCRIPT_URL)")
-        or die "Oh no!\n";
+    run qq(sh -c "RUNZSH=no \$(curl -fsSL $OHMY_SCRIPT_URL)") or die;
 
     unless (defined ohmy_root) {
         err "Oh-my-zsh installation not found by Rogu ⚠️";
@@ -493,8 +494,6 @@ sub inst_oh_my_zsh {
         info qq(Looks like oh-my-zsh has moved your ".zshrc" to "$backup");
         run "mv $backup .zshrc" if confirm "Do you want to undo this?";
     }
-
-    good affirmative;
 }
 
 
@@ -521,7 +520,7 @@ sub inst_dotfiles {
 
 
 sub inst_homebrew {
-    #TODO install Homebrew (new mac)
+    ... #TODO install Homebrew (new mac)
 }
 
 
@@ -535,7 +534,7 @@ sub inst_brew_apps {
     );
     say join "\n", @apps;
 
-    #TODO install brew apps (new mac)
+    ... #TODO install brew apps (new mac)
 }
 
 
@@ -556,7 +555,7 @@ sub inst_get_targets {
 
 
 sub inst_install_targets {
-    #TODO install Install targets
+    ... #TODO install Install targets
 }
 #}}}
 
@@ -586,12 +585,11 @@ sub uninstall {
         usleep 1_000_000;
     };
 
-    &$run_step($TITLE_OH_MY_ZSH,        \&unin_oh_my_zsh);
-    &$run_step($TITLE_DOTFILES,         \&unin_dotfiles);
-    &$run_step($TITLE_HOMEBREW,         \&unin_homebrew);
-    &$run_step($TITLE_BREW_APPS,        \&unin_brew_apps);
-    &$run_step($TITLE_GET_TARGETS,      \&unin_get_targets);
-    #TODO &$run_step($TITLE_INSTALL_TARGETS,  \&unin_install_targets);
+    &$run_step($TITLE_OH_MY_ZSH, \&unin_oh_my_zsh);
+    &$run_step($TITLE_DOTFILES, \&unin_dotfiles);
+    &$run_step($TITLE_HOMEBREW, \&unin_homebrew);
+    &$run_step($TITLE_BREW_APPS, \&unin_brew_apps);
+    &$run_step($TITLE_GET_TARGETS, \&unin_get_targets);
 }
 
 
@@ -606,9 +604,7 @@ sub unin_oh_my_zsh {
         return if confirm "Abort uninstallation of oh-my-zsh?";
     }
 
-    run "rm -rf $root" or die "Oh no!";
-
-    good affirmative;
+    run "rm -rf $root" or die;
 }
 
 
@@ -617,7 +613,7 @@ sub unin_dotfiles {
         // die "Dotfiles is not installed ⚠️";
     my @dotfiles = dot_files;
 
-    run "rm -rf $root" or die "Oh no!\n";
+    run "rm -rf $root" or die;
 
     if (@dotfiles) {
         info "Found " . scalar @dotfiles . " tracked dotfiles.";
@@ -626,8 +622,6 @@ sub unin_dotfiles {
             run "rm $_" for @dotfiles;
         }
     }
-
-    good affirmative;
 }
 
 
@@ -637,7 +631,7 @@ sub unin_homebrew {
     confirm yellow bold "Are you 100% absolutely definetly positively sure you want to uninstall Homebrew?"
         or return;
 
-    #TODO uninstall Homebrew (new mac)
+    ... #TODO uninstall Homebrew (new mac)
 }
 
 
@@ -646,7 +640,7 @@ sub unin_brew_apps {
     confirm yellow "Are you completely sure you want to uninstall Homebrew applications?"
         or return;
 
-    #TODO uninstall brew apps (new mac)
+    ... #TODO uninstall brew apps (new mac)
 }
 
 
@@ -674,6 +668,7 @@ sub unin_get_targets {
 #{{{
 
 sub update {
+    ...
     #TODO Update functionality
 }
 
@@ -704,14 +699,14 @@ sub doctor {
     is_valid_url($COMMON_URL)
         or say red "Common library URL is invalid 🚫";
 
-    #TODO &$run_step($TITLE_ROGU,             \&doc_rogu);
-    #TODO &$run_step($TITLE_COMMON,           \&doc_common);
-    &$run_step($TITLE_OH_MY_ZSH,        \&doc_oh_my_zsh);
-    &$run_step($TITLE_DOTFILES,         \&doc_dotfiles);
-    &$run_step($TITLE_HOMEBREW,         \&doc_homebrew);
-    # &$run_step($TITLE_BREW_APPS,        \&doc_brew_apps);
-    &$run_step($TITLE_GET_TARGETS,      \&doc_get_targets);
-    &$run_step($TITLE_INSTALL_TARGETS,  \&doc_install_targets);
+    #TODO &$run_step($TITLE_ROGU, \&doc_rogu);
+    #TODO &$run_step($TITLE_COMMON, \&doc_common);
+    &$run_step($TITLE_OH_MY_ZSH, \&doc_oh_my_zsh);
+    &$run_step($TITLE_DOTFILES, \&doc_dotfiles);
+    &$run_step($TITLE_HOMEBREW, \&doc_homebrew);
+    # &$run_step($TITLE_BREW_APPS, \&doc_brew_apps);
+    &$run_step($TITLE_GET_TARGETS, \&doc_get_targets);
+    &$run_step($TITLE_INSTALL_TARGETS, \&doc_install_targets);
 }
 
 
@@ -847,13 +842,13 @@ sub doc_install_targets {
 # Main
 #{{{
 
-mkdir "$HOME/.cache", 0755 unless -d "$HOME/.cache";
-mkdir "$HOME/.config", 0755 unless -d "$HOME/.config";
-mkdir $CACHE_DIR, 0755 unless -d $CACHE_DIR;
-mkdir $CONF_DIR, 0755 unless -d $CONF_DIR;
-mkdir $TMP_DIR, 0755 unless -d $TMP_DIR;
+for ($CACHE_DIR, $CONF_DIR, $DATA_DIR, $TMP_DIR) {
+    system "mkdir -p $_" unless -d;
+    $? == 0 or die $!;
+}
 
 dbmopen(our %DATA, $APP_DATA_FILE, 0644);
+dbmopen(our %CACHE, $APP_CACHE_FILE, 0644);
 
 our %CONF;
 %CONF = conf_read $USER_CONF_FILE if -f $USER_CONF_FILE;
@@ -863,13 +858,12 @@ our %CONF;
 # The output shouldn't be redirected anyway.
 set_log_out(*STDOUT);
 
-my  $HELP  = 0;
-
 sub usage {
     print for (<DATA>);
     exit 1;
 }
 
+my $HELP = 0;
 GetOptions(
     'help|h'  => \$HELP,
     'debug|d' => \$DEBUG,
