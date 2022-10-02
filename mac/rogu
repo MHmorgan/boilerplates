@@ -201,8 +201,11 @@ sub get_file_cache {
 #
 sub is_valid_url {
     my $url = shift;
-    $_ = qx{ curl -sSL --head $url };
-    /HTTP.. 2\d\d/ ? 1 : 0
+    my $key = "HEAD $url";
+    unless (exists $::RUN_CACHE{$key}) {
+        $::RUN_CACHE{$key} = qx{ curl -sSL --head $url };
+    }
+    $::RUN_CACHE{$key} =~ /HTTP.. 2\d\d/ ? 1 : 0
 }
 
 
