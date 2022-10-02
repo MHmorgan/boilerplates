@@ -456,7 +456,7 @@ sub install {
     );
     @steps = list_select "Remove any installation steps to skip.", @steps;
 
-    my $run_step = sub {
+    my $run_install = sub {
         my ($name, $func) = @_;
         return unless grep /$name/, @steps;
         emph "Running install $name";
@@ -465,12 +465,12 @@ sub install {
         usleep 1_000_000;
     };
 
-    &$run_step($TITLE_OH_MY_ZSH, \&inst_oh_my_zsh);
-    &$run_step($TITLE_DOTFILES, \&inst_dotfiles);
-    &$run_step($TITLE_HOMEBREW, \&inst_homebrew);
-    &$run_step($TITLE_BREW_APPS, \&inst_brew_apps);
-    &$run_step($TITLE_GET_TARGETS, \&inst_get_targets);
-    &$run_step($TITLE_INSTALL_TARGETS, \&inst_install_targets);
+    &$run_install($TITLE_OH_MY_ZSH, \&inst_oh_my_zsh);
+    &$run_install($TITLE_DOTFILES, \&inst_dotfiles);
+    &$run_install($TITLE_HOMEBREW, \&inst_homebrew);
+    &$run_install($TITLE_BREW_APPS, \&inst_brew_apps);
+    &$run_install($TITLE_GET_TARGETS, \&inst_get_targets);
+    &$run_install($TITLE_INSTALL_TARGETS, \&inst_install_targets);
 }
 
 
@@ -576,7 +576,7 @@ sub uninstall {
     );
     @steps = list_select "Remove any uninstallation steps to skip.", @steps;
 
-    my $run_step = sub {
+    my $run_uninstall = sub {
         my ($name, $func) = @_;
         return unless grep /$name/, @steps;
         emph "Running uninstall $name";
@@ -585,11 +585,11 @@ sub uninstall {
         usleep 1_000_000;
     };
 
-    &$run_step($TITLE_OH_MY_ZSH, \&unin_oh_my_zsh);
-    &$run_step($TITLE_DOTFILES, \&unin_dotfiles);
-    &$run_step($TITLE_HOMEBREW, \&unin_homebrew);
-    &$run_step($TITLE_BREW_APPS, \&unin_brew_apps);
-    &$run_step($TITLE_GET_TARGETS, \&unin_get_targets);
+    &$run_uninstall($TITLE_OH_MY_ZSH, \&unin_oh_my_zsh);
+    &$run_uninstall($TITLE_DOTFILES, \&unin_dotfiles);
+    &$run_uninstall($TITLE_HOMEBREW, \&unin_homebrew);
+    &$run_uninstall($TITLE_BREW_APPS, \&unin_brew_apps);
+    &$run_uninstall($TITLE_GET_TARGETS, \&unin_get_targets);
 }
 
 
@@ -669,7 +669,20 @@ sub unin_get_targets {
 
 sub update {
     ...
-    #TODO Update functionality
+
+    my $run_update = sub {
+        my ($name, $func) = @_;
+        emph "Running update $name";
+        usleep 200_000;
+        &$func();
+        usleep 1_000_000;
+    };
+
+    #TODO &$run_update($TITLE_ROGU, \&updt_rogu);
+    #TODO &$run_update($TITLE_COMMON, \&updt_common);
+    #TODO &$run_update($TITLE_DOTFILES, \&updt_dotfiles);
+    #TODO &$run_update($TITLE_BREW_APPS, \&updt_brew_apps);
+    #TODO &$run_update($TITLE_GET_TARGETS, \&updt_get_targets);
 }
 
 #}}}
@@ -682,7 +695,7 @@ sub update {
 sub doctor {
     my $filter = shift;
 
-    my $run_step = sub {
+    my $run_doctor = sub {
         my ($name, $func) = @_;
         if ($filter) {
             return if $name !~ /$filter/i;
@@ -699,14 +712,14 @@ sub doctor {
     is_valid_url($COMMON_URL)
         or say red "Common library URL is invalid 🚫";
 
-    #TODO &$run_step($TITLE_ROGU, \&doc_rogu);
-    #TODO &$run_step($TITLE_COMMON, \&doc_common);
-    &$run_step($TITLE_OH_MY_ZSH, \&doc_oh_my_zsh);
-    &$run_step($TITLE_DOTFILES, \&doc_dotfiles);
-    &$run_step($TITLE_HOMEBREW, \&doc_homebrew);
-    # &$run_step($TITLE_BREW_APPS, \&doc_brew_apps);
-    &$run_step($TITLE_GET_TARGETS, \&doc_get_targets);
-    &$run_step($TITLE_INSTALL_TARGETS, \&doc_install_targets);
+    #TODO &$run_doctor($TITLE_ROGU, \&doc_rogu);
+    #TODO &$run_doctor($TITLE_COMMON, \&doc_common);
+    &$run_doctor($TITLE_OH_MY_ZSH, \&doc_oh_my_zsh);
+    &$run_doctor($TITLE_DOTFILES, \&doc_dotfiles);
+    &$run_doctor($TITLE_HOMEBREW, \&doc_homebrew);
+    # &$run_doctor($TITLE_BREW_APPS, \&doc_brew_apps);
+    &$run_doctor($TITLE_GET_TARGETS, \&doc_get_targets);
+    &$run_doctor($TITLE_INSTALL_TARGETS, \&doc_install_targets);
 }
 
 
