@@ -81,10 +81,10 @@ our $TITLE_INSTALL_TARGETS = 'Install-targets 🔧';
 our $DEFAULT_EDITOR = 'vi';
 our $DEFAULT_PAGER  = 'less';
 
-our $ROGU_URL   = "https://mhmorgan.github.io/boilerplates/mac/rogu";
-our $ROGU_DIR   = "$HOME/bin/rogu";
-our $COMMON_URL = "https://mhmorgan.github.io/boilerplates/common.pm";
-our $COMMON_DIR = "$HOME/lib/common.pm";
+our $ROGU_URL    = "https://mhmorgan.github.io/boilerplates/mac/rogu";
+our $ROGU_PATH   = "$HOME/bin/rogu";
+our $COMMON_URL  = "https://mhmorgan.github.io/boilerplates/common.pm";
+our $COMMON_PATH = "$HOME/lib/common.pm";
 
 our $DEBUG = 0;
 our $ALL   = 0;
@@ -732,14 +732,36 @@ sub doctor {
     is_valid_url($COMMON_URL)
         or say red "Common library URL is invalid 🚫";
 
-    #TODO &$run_doctor($TITLE_ROGU, \&doc_rogu);
-    #TODO &$run_doctor($TITLE_COMMON, \&doc_common);
+    &$run_doctor($TITLE_ROGU, \&doc_rogu);
+    &$run_doctor($TITLE_COMMON, \&doc_common);
     &$run_doctor($TITLE_OH_MY_ZSH, \&doc_oh_my_zsh);
     &$run_doctor($TITLE_DOTFILES, \&doc_dotfiles);
     &$run_doctor($TITLE_HOMEBREW, \&doc_homebrew);
     # &$run_doctor($TITLE_BREW_APPS, \&doc_brew_apps);
     &$run_doctor($TITLE_GET_TARGETS, \&doc_get_targets);
     &$run_doctor($TITLE_INSTALL_TARGETS, \&doc_install_targets);
+}
+
+
+sub doc_rogu {
+    unless (is_valid_url $ROGU_URL) {
+        say red "Invalid script URL 🚫";
+    } elsif (is_different $ROGU_URL, $ROGU_PATH) {
+        say yellow "Rogu has pending updates ⚠️";
+    } else {
+        say green "Everything is OK 👍";
+    }
+}
+
+
+sub doc_common {
+    unless (is_valid_url $COMMON_URL) {
+        say red "Invalid file URL 🚫";
+    } elsif (is_different $COMMON_URL, $COMMON_PATH) {
+        say yellow "Common.pm has pending updates ⚠️";
+    } else {
+        say green "Everything is OK 👍";
+    }
 }
 
 
@@ -836,6 +858,19 @@ sub doc_install_targets {
 
 
 ################################################################################
+# Report
+#
+# Report about
+#{{{
+
+sub report {
+    ... #TODO Reporting
+}
+
+#}}}
+
+
+################################################################################
 # Data
 #{{{
 #}}}
@@ -895,33 +930,39 @@ if ($DEBUG && @RES) {
 #}}}
 
 
-################################################################################
-# Help text
-
 __DATA__
 Usage: rogu [options] <command> [args...]
 
 Roger's weird offspring.
 
 Commands:
+    doctor [FILTER]
+            Run an sanity check of everything Rogu knows
+            about on the system. This is mostly a passive
+            action, but not completely.
+
+            The optional FILTER allows filtering on which
+            sanity checks are performed, selecting on title.
+
+    update
+            Update anything that needs updates.
+
+    install
+            Install everything needed to use the system (at
+            least everything Rogu knows about).
+
+    uninstall
+            Uninstall most of the things that Rogu knows how
+            to handle.
+
+    report
+            Print reports of details about the system, as
+            Rogu knows it.
+
     config <cmd>
             User configuration actions.
 
             Subcommands: print, validate.
-
-    doctor [FILTER]
-            Run an sanity check of everything Rogu knows about on the
-            system. This is mostly a passive action, but not completely.
-
-            The optional FILTER allows filtering on which sanity checks
-            are performed, selecting on title.
-
-    install
-            Install everything needed to use the system (at least
-            everything Rogu knows about).
-
-    uninstall
-            Uninstall most of the things that Rogu knows how to handle.
 
 
 Options:
