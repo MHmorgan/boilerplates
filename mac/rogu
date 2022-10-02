@@ -102,9 +102,9 @@ our $TITLE_INSTALL_TARGETS = 'Install-targets 🔧';
 our $DEFAULT_EDITOR = 'vi';
 our $DEFAULT_PAGER  = 'less';
 
-our $ROGU_URL    = "https://mhmorgan.github.io/boilerplates/mac/rogu";
+our $ROGU_URL    = "https://raw.githubusercontent.com/MHmorgan/boilerplates/main/mac/rogu";
 our $ROGU_PATH   = "$HOME/bin/rogu";
-our $COMMON_URL  = "https://mhmorgan.github.io/boilerplates/common.pm";
+our $COMMON_URL  = "https://raw.githubusercontent.com/MHmorgan/boilerplates/main/common.pm";
 our $COMMON_PATH = "$HOME/lib/common.pm";
 
 our $DEBUG;
