@@ -176,6 +176,33 @@ sub run {
 }
 
 
+sub fetch_url {
+    my $url = shift;
+    my %resp;
+
+    unless (exists $::RUN_CACHE{"GET $url"}) {
+        $::RUN_CACHE{"GET $url"}= qx{ curl -sSL $url }
+            or die "GET $url failed";
+    }
+    $resp{body} = $::RUN_CACHE{"GET $url"};
+
+    unless (exists $::RUN_CACHE{"HEAD $url"}) {
+        $::RUN_CACHE{"HEAD $url"}= qx{ curl -sSLI $url }
+            or die "HEAD $url failed";
+    }
+    for (split "\n", $::RUN_CACHE{"HEAD $url"}) {
+        chomp;
+        if (/HTTP\/\d \d{3}/) {
+            $resp{status} = $_;
+        } elsif (/^([^:]+): (.+)$/) {
+            $resp{$1} = $2;
+        }
+    }
+
+    return %resp;
+}
+
+
 # Returns a path to a local cache of the file located
 # at the given $url.
 #
@@ -184,11 +211,13 @@ sub get_file_cache {
     if (exists $::RUN_CACHE{$url}) {
         return $::RUN_CACHE{$url};
     }
+    #TODO Use fetch_url
 
     my $name = $url =~ s/[\/:]+/_/rg;
     chdir $CACHE_DIR or die $!;
-    system("curl -sSL $url -o $name") == 0
+    system("curl -sSL $url > $name") == 0
         or die "GET $url failed";
+
     my $path =  "$CACHE_DIR/$name";
     -f $path or die "Caching $name failed";
 
@@ -201,6 +230,7 @@ sub get_file_cache {
 #
 sub is_valid_url {
     my $url = shift;
+    #TODO Use fetch_url
     my $key = "HEAD $url";
     unless (exists $::RUN_CACHE{$key}) {
         $::RUN_CACHE{$key} = qx{ curl -sSL --head $url };
@@ -215,6 +245,7 @@ sub is_valid_url {
 sub is_different {
     my ($url, $path) = @_;
     my $fcache = get_file_cache $url;
+    #TODO Check dato when checking differences
     qx{ diff -q $fcache $path };
     $? == 0 ? 0 : 1
 }
