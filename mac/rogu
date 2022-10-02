@@ -82,7 +82,9 @@ our $DEFAULT_EDITOR = 'vi';
 our $DEFAULT_PAGER  = 'less';
 
 our $ROGU_URL   = "https://mhmorgan.github.io/boilerplates/mac/rogu";
+our $ROGU_DIR   = "$HOME/bin/rogu";
 our $COMMON_URL = "https://mhmorgan.github.io/boilerplates/common.pm";
+our $COMMON_DIR = "$HOME/lib/common.pm";
 
 our $DEBUG = 0;
 our $ALL   = 0;
@@ -167,6 +169,8 @@ sub cache_file {
 }
 
 
+# Returns true if the given $url is valid.
+#
 sub is_valid_url {
     my $url = shift;
     $_ = qx{ curl -sSL --head $url };
@@ -668,8 +672,6 @@ sub unin_get_targets {
 #{{{
 
 sub update {
-    ...
-
     my $run_update = sub {
         my ($name, $func) = @_;
         emph "Running update $name";
@@ -683,6 +685,7 @@ sub update {
     #TODO &$run_update($TITLE_DOTFILES, \&updt_dotfiles);
     #TODO &$run_update($TITLE_BREW_APPS, \&updt_brew_apps);
     #TODO &$run_update($TITLE_GET_TARGETS, \&updt_get_targets);
+    ...
 }
 
 #}}}
@@ -724,15 +727,10 @@ sub doctor {
 
 
 sub doc_oh_my_zsh {
-    #
-    # Is install script URL valid?
-    #
     unless (is_valid_url $OHMY_SCRIPT_URL) {
         say red "Install script URL is invalid 🚫";
     }
-    #
-    # Is oh-my-zsh installed?
-    #
+
     my $root = ohmy_root;
     unless (defined $root) {
         say red "Oh-my-zsh isn't installed 👎";
@@ -740,9 +738,7 @@ sub doc_oh_my_zsh {
     }
     say green "Oh-my-zsh is installed 👍";
     say "Location: $root";
-    #
-    # List custom plugins/themes.
-    #
+
     my @custom = ohmy_custom;
     if (@custom) {
         say "You have " . scalar @custom . " custom plugins/themes:";
@@ -752,15 +748,10 @@ sub doc_oh_my_zsh {
 
 
 sub doc_dotfiles {
-    #
-    # Is repo URL valid?
-    #
     unless (is_valid_url $DOT_REPO) {
         say red "Dotfiles repo URL is invalid 🚫";
     }
-    #
-    # Is dotfiles installed?
-    #
+
     my $root = dot_root;
     unless (defined $root) {
         say red "Dotfiles isn't installed 👎";
@@ -768,18 +759,8 @@ sub doc_dotfiles {
     }
     say green "Dotfiles is installed 👍";
     say "Location: $root";
-    #
-    # List dotfiles
-    #
-    my @dotfiles = dot_files;
-    say "Tracking " . scalar @dotfiles . " dotfiles.";
-    if (@dotfiles) {
-        say bold "Dotfiles";
-        say "  $_" for @dotfiles;
-    }
-    #
-    # Git status/update
-    #
+    say "Tracking " . scalar(dot_files) . " dotfiles.";
+
     chdir() or die $!;
     my $git = dot_git;
     my $status = qx{ $git status --short };
@@ -791,9 +772,6 @@ sub doc_dotfiles {
 
 
 sub doc_homebrew {
-    #
-    # Is installed?
-    #
     chomp(my $exec = qx{ command -v brew });
     if ($exec eq '') {
         say red "Homebrew isn't installed 👎";
@@ -801,17 +779,11 @@ sub doc_homebrew {
     }
     say green "Homebrew is installed 👍";
     say "Executable location: $exec";
-    #
-    # Homebrew's environment variable.
-    #
+    system "brew info";
+
     say bold "Variables";
     chomp(my @vars = qx{ env });
     say for grep /HOMEBREW/, @vars;
-    #
-    # Homebrew information
-    #
-    say bold "Information";
-    system "brew info";
 }
 
 
@@ -824,6 +796,7 @@ sub doc_get_targets {
         } else {
             say yellow "Not installed: $path"
         }
+
         unless (is_valid_url $url) {
             say yellow "Invalid URL: $url";
         }
@@ -860,9 +833,20 @@ for ($CACHE_DIR, $CONF_DIR, $DATA_DIR, $TMP_DIR) {
     $? == 0 or die $!;
 }
 
+# DATA should be used to store data on disk, which
+# is needed for the functionality of Rogu.
 dbmopen(our %DATA, $APP_DATA_FILE, 0644);
+
+# CACHE should be used to cache data on disk, which needs
+# to be stored between runs, and improves performance.
 dbmopen(our %CACHE, $APP_CACHE_FILE, 0644);
 
+# RUN_CACHE should be used to cache data in memory, which
+# is needed to improve performance.
+our %RUN_CACHE = {};
+
+# CONF is the user configuration, and is treated
+# as read-only by Rogu.
 our %CONF;
 %CONF = conf_read $USER_CONF_FILE if -f $USER_CONF_FILE;
 
