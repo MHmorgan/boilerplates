@@ -485,7 +485,7 @@ sub dot_files {
 # The installation does the following:
 #
 # - Clones and installs my dotfiles from github.
-# - Installs homebrew, adds taps and installs brew applications. 
+# - Installs homebrew, adds taps and installs brew applications.
 # - Runs 'Install' config tasks
 # - Runs 'Get' config tasks
 #
@@ -513,7 +513,6 @@ sub install {
     &$run_install($TITLE_OH_MY_ZSH, \&inst_oh_my_zsh);
     &$run_install($TITLE_DOTFILES, \&inst_dotfiles);
     &$run_install($TITLE_HOMEBREW, \&inst_homebrew);
-    &$run_install($TITLE_BREW_APPS, \&inst_brew_apps);
     &$run_install($TITLE_GET_TARGETS, \&inst_get_targets);
     &$run_install($TITLE_INSTALL_TARGETS, \&inst_install_targets);
 }
@@ -544,7 +543,7 @@ sub inst_dotfiles {
     chdir() or die $!;
     run "git clone --bare $DOT_REPO $DOT_DIR" or die;
 
-    info "Creating backup of existing dotfiles."
+    info "Creating backup of existing dotfiles.";
     for (dot_files) {
         run "mv $_ $_~" if -e;
     }
@@ -558,11 +557,7 @@ sub inst_dotfiles {
 
 
 sub inst_homebrew {
-    ... #TODO install Homebrew (new mac)
-}
 
-
-sub inst_brew_apps {
     my $data = $::CONF{'Homebrew Apps'}{'DATA'}
         // [ "# (No Homebrew apps defined in user config)" ];
 
@@ -572,7 +567,7 @@ sub inst_brew_apps {
     );
     say join "\n", @apps;
 
-    ... #TODO install brew apps (new mac)
+    ... #TODO install Homebrew (new mac)
 }
 
 
@@ -622,7 +617,6 @@ sub uninstall {
     &$run_uninstall($TITLE_OH_MY_ZSH, \&unin_oh_my_zsh);
     &$run_uninstall($TITLE_DOTFILES, \&unin_dotfiles);
     &$run_uninstall($TITLE_HOMEBREW, \&unin_homebrew);
-    &$run_uninstall($TITLE_BREW_APPS, \&unin_brew_apps);
     &$run_uninstall($TITLE_GET_TARGETS, \&unin_get_targets);
 }
 
@@ -669,15 +663,6 @@ sub unin_homebrew {
 }
 
 
-sub unin_brew_apps {
-    my @apps;
-    confirm yellow "Are you completely sure you want to uninstall Homebrew applications?"
-        or return;
-
-    ... #TODO uninstall brew apps (new mac)
-}
-
-
 sub unin_get_targets {
     for (conf_get_files) {
         my ($url, $path) = @{$_};
@@ -712,23 +697,54 @@ sub update {
     };
 
     &$run_update($TITLE_ROGU, \&updt_rogu);
-    #TODO &$run_update($TITLE_COMMON, \&updt_common);
-    #TODO &$run_update($TITLE_OH_MY_ZSH, \&updt_oh_my_zsh);
-    #TODO &$run_update($TITLE_DOTFILES, \&updt_dotfiles);
-    #TODO &$run_update($TITLE_HOMEBREW, \&updt_homebrew);
-    #TODO &$run_update($TITLE_BREW_APPS, \&updt_brew_apps);
-    #TODO &$run_update($TITLE_GET_TARGETS, \&updt_get_targets);
-    #TODO &$run_update($TITLE_INSTALL_TARGETS, \&updt_install_targets);
+    &$run_update($TITLE_COMMON, \&updt_common);
+    &$run_update($TITLE_DOTFILES, \&updt_dotfiles);
+    &$run_update($TITLE_HOMEBREW, \&updt_homebrew);
+    &$run_update($TITLE_GET_TARGETS, \&updt_get_targets);
 }
 
 
 sub updt_rogu {
-    unless (is_different $ROGU_URL, $ROGU_PATH) {
-        good "Rogu is up-to-date "
+    is_valid_url($ROGU_URL) or die "Invalid script URL: $ROGU_URL ⛔️";
+    return unless is_different($ROGU_URL, $ROGU_PATH);
+    run "curl -sSL $ROGU_URL -o $ROGU_PATH" or die;
+}
+
+
+sub updt_common {
+    is_valid_url($COMMON_URL) or die "Invalid file URL: $COMMON_URL ⛔️";
+    return unless is_different($COMMON_URL, $COMMON_PATH);
+    run "curl -sSL $COMMON_URL -o $COMMON_PATH" or die;
+}
+
+
+sub updt_dotfiles {
+    is_valid_url $DOT_REPO or die "Invalid repo URL: $DOT_REPO ⛔️";
+    defined(dot_root) or die "Dotfiles not installed 🚫";
+
+    chdir() or die $!;
+    my $git = dot_git;
+    qx{ $git status --short } eq '' or die "Dotfiles are dirty ⛔️";
+    run "$git pull --rebase origin main" or die;
+}
+
+
+sub updt_homebrew {
+    cmd_exists "brew" or die "Homebrew isn't installed ⛔️";
+    run "brew update -q && brew upgrade -q" or die;
+}
+
+
+sub updt_get_targets {
+    for (conf_get_files) {
+        my ($url, $path, $mode) = @{$_};
+        is_valid_url($url) or die "Invalid URL: $url ⛔️";
+        next unless is_different($url, $path);
+        run "curl -sSL $url -o $path" or die;
+        chmod $mode, $path;
     }
 }
 #}}}
-
 
 ################################################################################
 # Doctor
@@ -747,13 +763,11 @@ sub doctor {
         sleep 1;
     };
 
-    #TODO Implement doctor --fix
     &$run_doctor($TITLE_ROGU, \&doc_rogu);
     &$run_doctor($TITLE_COMMON, \&doc_common);
     &$run_doctor($TITLE_OH_MY_ZSH, \&doc_oh_my_zsh);
     &$run_doctor($TITLE_DOTFILES, \&doc_dotfiles);
     &$run_doctor($TITLE_HOMEBREW, \&doc_homebrew);
-    &$run_doctor($TITLE_BREW_APPS, \&doc_brew_apps);
     &$run_doctor($TITLE_GET_TARGETS, \&doc_get_targets);
     &$run_doctor($TITLE_INSTALL_TARGETS, \&doc_install_targets);
 }
@@ -829,22 +843,18 @@ sub doc_dotfiles {
 
 
 sub doc_homebrew {
-    chomp(my $exec = qx{ command -v brew });
-    if ($exec eq '') {
+    unless (cmd_exists "brew") {
         say red "Homebrew isn't installed 👎";
         return;
     }
     say green "Homebrew is installed 👍";
     system "brew info";
-}
 
-
-sub doc_brew_apps {
     my @apps = @{$::CONF{'Homebrew Apps'}{DATA}};
     my @installed = grep /^\w+/, qx{ brew list -1 };
     for (@apps) {
         if (grep $_, @installed) {
-            say green "Installed: $_";
+            say "Installed: $_";
         } else {
             say yellow "Not installed: $_";
         }
@@ -857,7 +867,7 @@ sub doc_get_targets {
     for (conf_get_files) {
         my ($url, $path, $mode) = @{$_};
         if ( -f $path ) {
-            say green "Installed: $path";
+            say "Installed: $path";
         } else {
             say yellow "Not installed: $path"
         }
@@ -876,7 +886,7 @@ sub doc_install_targets {
     for (@targets) {
         my $installed = conf_install_check $_;
         if ($installed) {
-            say green qq(Installed: [$_]);
+            say qq(Installed: [$_]);
         } else {
             say yellow qq(Not installed: [$_]);
         }
