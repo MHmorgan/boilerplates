@@ -8,9 +8,30 @@
 #             |___/       
 # 
 # Personal assistant on mac systems.
+#
+# Design Philosophy
+# =================
+#
+# Command Types
+# -------------
+#
+# Action Commands
+#   These types of commands should perform actions,
+#   primarily, and should limit output printing to a minimum.
+#
+#   The goal is not to hide any actions performed by Rogu,
+#   but only *performed* actions should logged, not the
+#   absence of action (unless it's an error).
+#   However, do not print information which is duplicated by
+#   any information commands: don't report if anything is
+#   previously installed, don't report success (absence of
+#   error implies success).
+#
+# Information Commands
+#   These types of commands should print information to the
+#   user.
 
 # TODO future updates:
-
 # - Add self update functionality
 
 use 5.30.0;
@@ -86,8 +107,9 @@ our $ROGU_PATH   = "$HOME/bin/rogu";
 our $COMMON_URL  = "https://mhmorgan.github.io/boilerplates/common.pm";
 our $COMMON_PATH = "$HOME/lib/common.pm";
 
-our $DEBUG = 0;
-our $ALL   = 0;
+our $DEBUG;
+our $ALL;
+our $FIX;
 
 
 ################################################################################
@@ -481,9 +503,8 @@ sub install {
         my ($name, $func) = @_;
         return unless grep /$name/, @steps;
         emph "Running install $name";
-        usleep 200_000;
         &$func();
-        usleep 1_000_000;
+        sleep 1;
     };
 
     &$run_install($TITLE_OH_MY_ZSH, \&inst_oh_my_zsh);
@@ -498,42 +519,35 @@ sub install {
 # Install Oh My Zsh, unless it is already installed.
 #
 sub inst_oh_my_zsh {
-    if (defined ohmy_root) {
-        good "Already installed!";
-        return;
-    }
+    return if defined ohmy_root;
 
     chdir() or die $!;
     run qq(sh -c "RUNZSH=no \$(curl -fsSL $OHMY_SCRIPT_URL)") or die;
 
-    unless (defined ohmy_root) {
-        err "Oh-my-zsh installation not found by Rogu ⚠️";
-    }
+    defined ohmy_root
+        or die "Oh-my-zsh installation not found ⚠️";
 
     my $backup = '.zshrc.pre-oh-my-zsh';
     if (-e $backup) {
-        info qq(Looks like oh-my-zsh has moved your ".zshrc" to "$backup");
+        say qq(Looks like oh-my-zsh has moved your ".zshrc" to "$backup");
         run "mv $backup .zshrc" if confirm "Do you want to undo this?";
     }
 }
 
 
 sub inst_dotfiles {
-    if (defined dot_root) {
-        good "Already installed!";
-        return;
-    }
+    return if defined dot_root;
 
     chdir() or die $!;
-    run "git clone --bare $DOT_REPO $DOT_DIR" or die "Oh no!\n";
+    run "git clone --bare $DOT_REPO $DOT_DIR" or die;
 
-    info "Creating backup of any existing dotfiles...";
+    info "Creating backup of existing dotfiles."
     for (dot_files) {
         run "mv $_ $_~" if -e;
     }
 
     my $git = dot_git;
-    run "$git checkout $DOT_BRANCH" or die "Oh no!\n";
+    run "$git checkout $DOT_BRANCH" or die;
     run "$git config advice.addIgnoredFile false";
     run "$git config branch.$DOT_BRANCH.remote origin";
     run "$git config branch.$DOT_BRANCH.merge refs/heads/$DOT_BRANCH";
@@ -562,10 +576,7 @@ sub inst_brew_apps {
 sub inst_get_targets {
     for (conf_get_files) {
         my ($url, $path, $mode) = @{$_};
-        if ( -f $path ) {
-            good "Already installed: $path";
-            next;
-        }
+        next if -f $path;
 
         my $parent = $path =~ s/\/[^\/]+$//r;
         run "mkdir -p $parent" unless -d $parent;
@@ -601,9 +612,8 @@ sub uninstall {
         my ($name, $func) = @_;
         return unless grep /$name/, @steps;
         emph "Running uninstall $name";
-        usleep 200_000;
         &$func();
-        usleep 1_000_000;
+        sleep 1;
     };
 
     &$run_uninstall($TITLE_OH_MY_ZSH, \&unin_oh_my_zsh);
@@ -637,9 +647,9 @@ sub unin_dotfiles {
     run "rm -rf $root" or die;
 
     if (@dotfiles) {
-        info "Found " . scalar @dotfiles . " tracked dotfiles.";
-        say for @dotfiles;
-        if (confirm "Do you want to delete these?") {
+        say "Dotfiles:";
+        say "  $_" for @dotfiles;
+        if (confirm "Do you want to delete your dotfiles?") {
             run "rm $_" for @dotfiles;
         }
     }
@@ -668,10 +678,7 @@ sub unin_brew_apps {
 sub unin_get_targets {
     for (conf_get_files) {
         my ($url, $path) = @{$_};
-        unless ( -f $path ) {
-            bad "Not installed: $path";
-            next;
-        }
+        next unless -f $path;
         run "rm $path" or die;
     }
 }
@@ -689,22 +696,34 @@ sub unin_get_targets {
 #{{{
 
 sub update {
+    my $filter = shift;
+
     my $run_update = sub {
         my ($name, $func) = @_;
+        if ($filter) {
+            return if $name !~ /$filter/i;
+        }
         emph "Running update $name";
-        usleep 200_000;
         &$func();
-        usleep 1_000_000;
+        sleep 1;
     };
 
-    #TODO &$run_update($TITLE_ROGU, \&updt_rogu);
+    &$run_update($TITLE_ROGU, \&updt_rogu);
     #TODO &$run_update($TITLE_COMMON, \&updt_common);
+    #TODO &$run_update($TITLE_OH_MY_ZSH, \&updt_oh_my_zsh);
     #TODO &$run_update($TITLE_DOTFILES, \&updt_dotfiles);
+    #TODO &$run_update($TITLE_HOMEBREW, \&updt_homebrew);
     #TODO &$run_update($TITLE_BREW_APPS, \&updt_brew_apps);
     #TODO &$run_update($TITLE_GET_TARGETS, \&updt_get_targets);
-    ...
+    #TODO &$run_update($TITLE_INSTALL_TARGETS, \&updt_install_targets);
 }
 
+
+sub updt_rogu {
+    unless (is_different $ROGU_URL, $ROGU_PATH) {
+        good "Rogu is up-to-date "
+    }
+}
 #}}}
 
 
@@ -721,23 +740,17 @@ sub doctor {
             return if $name !~ /$filter/i;
         }
         header $name;
-        usleep 200_000;
         &$func();
-        print "\n";
-        usleep 1_000_000;
+        sleep 1;
     };
 
-    is_valid_url($ROGU_URL)
-        or say red "Rogu's URL is invalid 🚫";
-    is_valid_url($COMMON_URL)
-        or say red "Common library URL is invalid 🚫";
-
+    #TODO Implement doctor --fix
     &$run_doctor($TITLE_ROGU, \&doc_rogu);
     &$run_doctor($TITLE_COMMON, \&doc_common);
     &$run_doctor($TITLE_OH_MY_ZSH, \&doc_oh_my_zsh);
     &$run_doctor($TITLE_DOTFILES, \&doc_dotfiles);
     &$run_doctor($TITLE_HOMEBREW, \&doc_homebrew);
-    # &$run_doctor($TITLE_BREW_APPS, \&doc_brew_apps);
+    &$run_doctor($TITLE_BREW_APPS, \&doc_brew_apps);
     &$run_doctor($TITLE_GET_TARGETS, \&doc_get_targets);
     &$run_doctor($TITLE_INSTALL_TARGETS, \&doc_install_targets);
 }
@@ -748,6 +761,7 @@ sub doc_rogu {
         say red "Invalid script URL 🚫";
     } elsif (is_different $ROGU_URL, $ROGU_PATH) {
         say yellow "Rogu has pending updates ⚠️";
+        #updt_rogu() if $FIX;
     } else {
         say green "Everything is OK 👍";
     }
@@ -776,7 +790,6 @@ sub doc_oh_my_zsh {
         return;
     }
     say green "Oh-my-zsh is installed 👍";
-    say "Location: $root";
 
     my @custom = ohmy_custom;
     if (@custom) {
@@ -797,15 +810,17 @@ sub doc_dotfiles {
         return;
     }
     say green "Dotfiles is installed 👍";
-    say "Location: $root";
-    say "Tracking " . scalar(dot_files) . " dotfiles.";
 
     chdir() or die $!;
     my $git = dot_git;
     my $status = qx{ $git status --short };
-    unless ($status eq '') {
-        say bold "Repo Status:";
+    my $diff = qx{ $git fetch -q origin main && $git diff HEAD...FETCH_HEAD };
+
+    if ($status ne '') {
+        say red "Dotfiles are dirty ⛔️";
         system "$git status";
+    } elsif ($diff ne '') {
+        say yellow "Dotfiles has pending updates ⚠️";
     }
 }
 
@@ -817,12 +832,20 @@ sub doc_homebrew {
         return;
     }
     say green "Homebrew is installed 👍";
-    say "Executable location: $exec";
     system "brew info";
+}
 
-    say bold "Variables";
-    chomp(my @vars = qx{ env });
-    say for grep /HOMEBREW/, @vars;
+
+sub doc_brew_apps {
+    my @apps = @{$::CONF{'Homebrew Apps'}{DATA}};
+    my @installed = grep /^\w+/, qx{ brew list -1 };
+    for (@apps) {
+        if (grep $_, @installed) {
+            say green "Installed: $_";
+        } else {
+            say yellow "Not installed: $_";
+        }
+    }
 }
 
 
@@ -837,7 +860,9 @@ sub doc_get_targets {
         }
 
         unless (is_valid_url $url) {
-            say yellow "Invalid URL: $url";
+            say red "Invalid URL: $url ⛔️";
+        } elsif (is_different $url, $path) {
+            say yellow "Update pending: $path ⚠️";
         }
     }
 }
@@ -865,8 +890,24 @@ sub doc_install_targets {
 
 sub report {
     ... #TODO Reporting
+
+    # Reports could be generated with format() ?
+
+    # Report content:
+    # - Location of stuff
+    # - Environment variables
 }
 
+
+sub rprt_homebrew {
+    chomp(my $exec = qx{ command -v brew });
+    say "Executable location: $exec";
+    say bold "Variables";
+    chomp(my @vars = qx{ env });
+    say for grep /HOMEBREW/, @vars;
+
+    ...
+}
 #}}}
 
 
@@ -895,12 +936,14 @@ dbmopen(our %CACHE, $APP_CACHE_FILE, 0644);
 
 # RUN_CACHE should be used to cache data in memory, which
 # is needed to improve performance.
-our %RUN_CACHE = ();
+our %RUN_CACHE;
 
 # CONF is the user configuration, and is treated
 # as read-only by Rogu.
 our %CONF;
-%CONF = conf_read $USER_CONF_FILE if -f $USER_CONF_FILE;
+if (-f $USER_CONF_FILE) {
+    %CONF = conf_read $USER_CONF_FILE;
+}
 
 # Rogu is only intended to be used interactively, so
 # don't bother with using both STDERR and STDOUT.
@@ -912,11 +955,12 @@ sub usage {
     exit 1;
 }
 
-my $HELP = 0;
+my $HELP;
 GetOptions(
     'help|h'  => \$HELP,
     'debug|d' => \$DEBUG,
     'all'     => \$ALL,
+    'fix'     => \$FIX,
 ) or usage;
 usage if ($HELP || !(scalar @ARGV));
 
@@ -936,13 +980,16 @@ Usage: rogu [options] <command> [args...]
 Roger's weird offspring.
 
 Commands:
-    doctor [FILTER]
+    doctor [--fix] [FILTER]
             Run an sanity check of everything Rogu knows
             about on the system. This is mostly a passive
             action, but not completely.
 
             The optional FILTER allows filtering on which
             sanity checks are performed, selecting on title.
+
+            When --fix is given Rogu tries to fix any issues
+            as soon as it is encountered, if he knows how.
 
     update
             Update anything that needs updates.
