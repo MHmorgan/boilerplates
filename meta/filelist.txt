@@ -1,6 +1,8 @@
 common.pm
 common.zsh
+kladd.pl
 mac/dot
+mac/iTerm-Magnus-profile.json
 mac/rogu
 script.exp
 script.pl
