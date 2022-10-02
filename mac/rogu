@@ -154,17 +154,23 @@ sub run {
 }
 
 
-# Get a file from the given URL, caching it locally and
-# returning the path to the cached file.
+# Returns a path to a local cache of the file located
+# at the given $url.
 #
-sub cache_file {
+sub get_file_cache {
     my $url = shift;
+    if (exists $::RUN_CACHE{$url}) {
+        return $::RUN_CACHE{$url};
+    }
+
     my $name = $url =~ s/[\/:]+/_/rg;
     chdir $CACHE_DIR or die $!;
     system("curl -sSL $url -o $name") == 0
         or die "GET $url failed";
     my $path =  "$CACHE_DIR/$name";
     -f $path or die "Caching $name failed";
+
+    $::RUN_CACHE{$url} = $path;
     return $path;
 }
 
@@ -175,6 +181,17 @@ sub is_valid_url {
     my $url = shift;
     $_ = qx{ curl -sSL --head $url };
     /HTTP.. 2\d\d/ ? 1 : 0
+}
+
+
+# Returns true if the text file in at $url is different
+# from the text file at $path.
+#
+sub is_different {
+    my ($url, $path) = @_;
+    my $fcache = get_file_cache $url;
+    qx{ diff -q $fcache $path };
+    $? == 0 ? 0 : 1
 }
 #}}}
 
@@ -843,7 +860,7 @@ dbmopen(our %CACHE, $APP_CACHE_FILE, 0644);
 
 # RUN_CACHE should be used to cache data in memory, which
 # is needed to improve performance.
-our %RUN_CACHE = {};
+our %RUN_CACHE = ();
 
 # CONF is the user configuration, and is treated
 # as read-only by Rogu.
