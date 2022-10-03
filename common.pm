@@ -50,28 +50,17 @@ my $LOG_OUT = *STDERR;
 
 sub set_log_out { $LOG_OUT = shift }
 
-sub logsay {
-	@_ = colorstrip(@_) unless -t $LOG_OUT;
-	say $LOG_OUT @_;
-}
+sub logsay   { say $LOG_OUT colorstrip(@_) }
+sub logprint { print $LOG_OUT colorstrip(@_) }
 
-sub logprint {
-	@_ = colorstrip(@_) unless -t $LOG_OUT;
-	print $LOG_OUT @_;
-}
+sub err  { logsay "[!!] @_" }
+sub info { logsay "[⋅] @_" }
+sub emph { logsay "[*] @_" }
+sub good { logsay "[✓] @_" }
+sub bad  { logsay "[✗] @_" }
 
-$SIG{__DIE__} = sub { logprint red "[!!] @_"; exit 1 };
-$SIG{__WARN__} = sub { logprint yellow "[!] @_" };
-
-
-#
-# Prefixed and colored log messages.
-#
-sub err  { logsay red   "[!!] @_" }
-sub info { logsay       "[*] @_" }
-sub emph { logsay bold  "[↑] @_" }
-sub good { logsay green "[✓] @_" }
-sub bad  { logsay red   "[✗] @_" }
+$SIG{__DIE__}  = sub { logprint "[!!] @_"; exit 1 };
+$SIG{__WARN__} = sub { logprint "[!] @_" };
 
 #}}}
 

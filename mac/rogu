@@ -8,26 +8,51 @@
 #             |___/       
 # 
 # Personal assistant on mac systems.
+#
+# Design Philosophy
+# =================
+#
+# Command Types
+# -------------
+#
+# Action Commands
+#   These types of commands should perform actions,
+#   primarily, and should limit output printing to a minimum.
+#
+#   The goal is not to hide any actions performed by Rogu,
+#   but only *performed* actions should logged, not the
+#   absence of action (unless it's an error).
+#   However, do not print information which is duplicated by
+#   any information commands: don't report if anything is
+#   previously installed, don't report success (absence of
+#   error implies success).
+#
+# Information Commands
+#   These types of commands should print information to the
+#   user.
 
-# TODO:
-# - Track call history in DATA
+# TODO future updates:
 # - Add self update functionality
 
 use 5.30.0;
 use utf8;
 use warnings;
-use open qw(:std :utf8);
 use strict;
-
-use Time::HiRes qw( usleep );
-
-use Getopt::Long;
-use Pod::Usage;
+use open qw(:std :utf8);
 
 BEGIN {
+    unless ( -f "$ENV{HOME}/lib/common.pm") {
+        system("mkdir -p $ENV{HOME}/lib") == 0
+            or die;
+        system("curl -sSL https://mhmorgan.github.io/boilerplates/common.pm -o $ENV{HOME}/lib/common.pm") == 0
+            or die;
+    }
     push @INC, "$ENV{HOME}/lib";
 }
 
+use Time::HiRes qw( usleep );
+use Getopt::Long;
+use Pod::Usage;
 use common;
 
 #
@@ -36,13 +61,15 @@ use common;
 our $HOME       = $ENV{"HOME"};
 our $CACHE_DIR  = "$HOME/.cache/rogu";
 our $CONF_DIR   = "$HOME/.config/rogu";
+our $DATA_DIR   = "$HOME/.local/share/rogu";
 our $TMP_DIR    = "/tmp/rogu";
 
 #
 # Application files
 #
 our $USER_CONF_FILE = "$CONF_DIR/rogu.conf";
-our $APP_DATA_FILE  = "$CONF_DIR/data";
+our $APP_DATA_FILE  = "$DATA_DIR/rogu-data";
+our $APP_CACHE_FILE = "$CACHE_DIR/rogu-cache";
 
 #
 # Oh-my-zsh parameters
@@ -60,6 +87,8 @@ our $DOT_BRANCH = "main";
 #
 # Unified naming of common steps
 #
+our $TITLE_ROGU            = 'Rogu 👽';
+our $TITLE_COMMON          = 'Common library 📚';
 our $TITLE_OH_MY_ZSH       = 'Oh-my-zsh 🖥';
 our $TITLE_DOTFILES        = 'Dotfiles ⚙️';
 our $TITLE_HOMEBREW        = 'Homebrew 🍺';
@@ -73,17 +102,23 @@ our $TITLE_INSTALL_TARGETS = 'Install-targets 🔧';
 our $DEFAULT_EDITOR = 'vi';
 our $DEFAULT_PAGER  = 'less';
 
+our $ROGU_URL    = "https://raw.githubusercontent.com/MHmorgan/boilerplates/main/mac/rogu";
+our $ROGU_PATH   = "$HOME/bin/rogu";
+our $COMMON_URL  = "https://raw.githubusercontent.com/MHmorgan/boilerplates/main/common.pm";
+our $COMMON_PATH = "$HOME/lib/common.pm";
+
+our $DEBUG;
+our $ALL;
+our $FIX;
 
 
 ################################################################################
 # Utils
 #{{{
 
-# trim STR → STR
-#
 # Remove any leading and trailing whitespace
 #
-sub trim { my ($str) = @_; $str =~ s/^\s+|\s+$//gr }
+sub trim { my $str = shift; $str =~ s/^\s+|\s+$//gr }
 
 
 # Return true if the user has sudo privileges.
@@ -101,6 +136,9 @@ sub user_can_sudo {
 #
 sub list_select {
     my ($desc, @values) = @_;
+    if ($ALL) {
+        return @values;
+    }
     #
     # Fill temporary file with list.
     #
@@ -129,6 +167,7 @@ sub list_select {
     return @new_values;
 }
 
+
 sub run {
     my $cmd = shift;
     say "[>] $cmd";
@@ -137,45 +176,78 @@ sub run {
 }
 
 
-# Get a file from the given URL, caching it locally and
-# returning the path to the cached file.
+sub fetch_url {
+    my $url = shift;
+    my %resp;
+
+    unless (exists $::RUN_CACHE{"GET $url"}) {
+        $::RUN_CACHE{"GET $url"}= qx{ curl -sSL $url }
+            or die "GET $url failed";
+    }
+    $resp{body} = $::RUN_CACHE{"GET $url"};
+
+    unless (exists $::RUN_CACHE{"HEAD $url"}) {
+        $::RUN_CACHE{"HEAD $url"}= qx{ curl -sSLI $url }
+            or die "HEAD $url failed";
+    }
+    for (split "\n", $::RUN_CACHE{"HEAD $url"}) {
+        chomp;
+        if (/HTTP\/\d \d{3}/) {
+            $resp{status} = $_;
+        } elsif (/^([^:]+): (.+)$/) {
+            $resp{$1} = $2;
+        }
+    }
+
+    return %resp;
+}
+
+
+# Returns a path to a local cache of the file located
+# at the given $url.
 #
-sub cache_file {
-    my ($url) = @_;
+sub get_file_cache {
+    my $url = shift;
+    if (exists $::RUN_CACHE{$url}) {
+        return $::RUN_CACHE{$url};
+    }
+    #TODO Use fetch_url
+
     my $name = $url =~ s/[\/:]+/_/rg;
     chdir $CACHE_DIR or die $!;
-    system("curl -sSL $url -o $name") == 0
+    system("curl -sSL $url > $name") == 0
         or die "GET $url failed";
+
     my $path =  "$CACHE_DIR/$name";
     -f $path or die "Caching $name failed";
+
+    $::RUN_CACHE{$url} = $path;
     return $path;
 }
-#}}}
 
 
-################################################################################
-# Oh-my-zsh
-#{{{
-
-
-# Return the root directory for the Oh-my-zsh installation
-# or undef if it cannot be found.
+# Returns true if the given $url is valid.
 #
-sub ohmy_root { -d $OHMY_DIR ? $OHMY_DIR : undef }
-
-
-# Return a list of all custom plugins/themes for Oh-my-zsh.
-#
-sub ohmy_custom {
-    my @vals;
-    my $root = ohmy_root() // return @vals;
-    chdir "$root/custom" || die $!;
-
-    while (<plugins/* themes/*>) {
-        next if /example/;
-        push @vals, $_;
+sub is_valid_url {
+    my $url = shift;
+    #TODO Use fetch_url
+    my $key = "HEAD $url";
+    unless (exists $::RUN_CACHE{$key}) {
+        $::RUN_CACHE{$key} = qx{ curl -sSL --head $url };
     }
-    return @vals;
+    $::RUN_CACHE{$key} =~ /HTTP.. 2\d\d/ ? 1 : 0
+}
+
+
+# Returns true if the text file in at $url is different
+# from the text file at $path.
+#
+sub is_different {
+    my ($url, $path) = @_;
+    my $fcache = get_file_cache $url;
+    #TODO Check dato when checking differences
+    qx{ diff -q $fcache $path };
+    $? == 0 ? 0 : 1
 }
 #}}}
 
@@ -329,23 +401,29 @@ sub conf_validate {
 }
 
 
-# Return a hash which maps filepaths to URLs for all entries
-# in the Get targets in the user configuration.
+# Return an array of arrays with all the Get files.
+# Each file is represented with an array on the format:
+#   [ URL, PATH, MODE ]
 #
 sub conf_get_files {
-    my %files;
+    my @files;
     while (my ($section, $content) = each %::CONF) {
         next unless $section =~ /^Get /;
         my $dir = $content->{DIR} // $HOME;
         my @data = @{$content->{DATA}};
         for (@data) {
-            /^(\S+)(\s+\((.*?)\))?/;
+            /^
+                (\S+?) # Starts with URL
+                (\s*\((.*?)\))? # Optionally (name)
+                (\s*\[(.*?)\])? # Optionally [mode]
+            $/x;
             my $url = $1;
+            my $mode = oct($5 // '0644');
             my $name = $3 // $url =~ s/.*\///r;
-            $files{"$dir/$name"} = $url;
+            push @files, [$url, "$dir/$name", $mode];
         }
     }
-    return %files;
+    return @files;
 }
 
 
@@ -361,6 +439,33 @@ sub conf_install_check {
     my $check = $::CONF{$name}->{CHECK} // return 0;
     system $check;
     $? == 0 ? 1 : 0
+}
+#}}}
+
+
+################################################################################
+# Oh-my-zsh
+#{{{
+
+
+# Return the root directory for the Oh-my-zsh installation
+# or undef if it cannot be found.
+#
+sub ohmy_root { -d $OHMY_DIR ? $OHMY_DIR : undef }
+
+
+# Return a list of all custom plugins/themes for Oh-my-zsh.
+#
+sub ohmy_custom {
+    my @vals;
+    my $root = ohmy_root() // return @vals;
+    chdir "$root/custom" || die $!;
+
+    while (<plugins/* themes/*>) {
+        next if /example/;
+        push @vals, $_;
+    }
+    return @vals;
 }
 #}}}
 
@@ -411,7 +516,7 @@ sub dot_files {
 # The installation does the following:
 #
 # - Clones and installs my dotfiles from github.
-# - Installs homebrew, adds taps and installs brew applications. 
+# - Installs homebrew, adds taps and installs brew applications.
 # - Runs 'Install' config tasks
 # - Runs 'Get' config tasks
 #
@@ -424,81 +529,66 @@ sub install {
     my @steps = (
         $TITLE_OH_MY_ZSH,
         $TITLE_DOTFILES,
+        $TITLE_GET_TARGETS,
     );
     @steps = list_select "Remove any installation steps to skip.", @steps;
 
-    my $run_step = sub {
+    my $run_install = sub {
         my ($name, $func) = @_;
         return unless grep /$name/, @steps;
-        header $name;
-        sleep 1;
+        emph "Running install $name";
         &$func();
-        print "\n";
         sleep 1;
     };
 
-    &$run_step($TITLE_OH_MY_ZSH,        \&inst_oh_my_zsh);
-    &$run_step($TITLE_DOTFILES,         \&inst_dotfiles);
-    &$run_step($TITLE_HOMEBREW,         \&inst_homebrew);
-    &$run_step($TITLE_BREW_APPS,        \&inst_brew_apps);
-    &$run_step($TITLE_GET_TARGETS,      \&inst_get_targets);
-    &$run_step($TITLE_INSTALL_TARGETS,  \&inst_install_targets);
+    &$run_install($TITLE_OH_MY_ZSH, \&inst_oh_my_zsh);
+    &$run_install($TITLE_DOTFILES, \&inst_dotfiles);
+    &$run_install($TITLE_HOMEBREW, \&inst_homebrew);
+    &$run_install($TITLE_GET_TARGETS, \&inst_get_targets);
+    &$run_install($TITLE_INSTALL_TARGETS, \&inst_install_targets);
 }
 
 
 # Install Oh My Zsh, unless it is already installed.
 #
 sub inst_oh_my_zsh {
-    if (defined ohmy_root) {
-        good "Already installed!";
-        return;
-    }
+    return if defined ohmy_root;
 
     chdir() or die $!;
-    run qq(sh -c "RUNZSH=no \$(curl -fsSL $OHMY_SCRIPT_URL)")
-        or die "Oh no!\n";
+    run qq(sh -c "RUNZSH=no \$(curl -fsSL $OHMY_SCRIPT_URL)") or die;
 
-    unless (defined ohmy_root) {
-        err "Oh-my-zsh installation not found by Rogu ⚠️";
-    }
+    defined ohmy_root
+        or die "Oh-my-zsh installation not found ⚠️";
 
     my $backup = '.zshrc.pre-oh-my-zsh';
     if (-e $backup) {
-        info qq(Looks like oh-my-zsh has moved your ".zshrc" to "$backup");
+        say qq(Looks like oh-my-zsh has moved your ".zshrc" to "$backup");
         run "mv $backup .zshrc" if confirm "Do you want to undo this?";
     }
-
-    good affirmative;
 }
 
 
 sub inst_dotfiles {
-    if (defined dot_root) {
-        good "Already installed!";
-        return;
-    }
+    return if defined dot_root;
 
     chdir() or die $!;
-    run "git clone --bare $DOT_REPO $DOT_DIR" or die "Oh no!\n";
+    run "git clone --bare $DOT_REPO $DOT_DIR" or die;
 
-    info "Creating backup of any existing dotfiles...";
+    info "Creating backup of existing dotfiles.";
     for (dot_files) {
         run "mv $_ $_~" if -e;
     }
 
     my $git = dot_git;
-    run "$git checkout $DOT_BRANCH" or die "Oh no!\n";
+    run "$git checkout $DOT_BRANCH" or die;
+    run "$git config advice.addIgnoredFile false";
     run "$git config branch.$DOT_BRANCH.remote origin";
     run "$git config branch.$DOT_BRANCH.merge refs/heads/$DOT_BRANCH";
 }
 
 
 sub inst_homebrew {
-    #TODO When I get a new mac ❗️
-}
 
-
-sub inst_brew_apps {
     my $data = $::CONF{'Homebrew Apps'}{'DATA'}
         // [ "# (No Homebrew apps defined in user config)" ];
 
@@ -508,17 +598,25 @@ sub inst_brew_apps {
     );
     say join "\n", @apps;
 
-    #TODO When I get a new mac ❗️
+    ... #TODO install Homebrew (new mac)
 }
 
 
 sub inst_get_targets {
-    #TODO
+    for (conf_get_files) {
+        my ($url, $path, $mode) = @{$_};
+        next if -f $path;
+
+        my $parent = $path =~ s/\/[^\/]+$//r;
+        run "mkdir -p $parent" unless -d $parent;
+        run "curl -sSL $url -o $path" or die;
+        chmod $mode, $path;
+    }
 }
 
 
 sub inst_install_targets {
-    #TODO
+    ... #TODO install Install targets
 }
 #}}}
 
@@ -535,25 +633,22 @@ sub uninstall {
     my @steps = (
         $TITLE_OH_MY_ZSH,
         $TITLE_DOTFILES,
+        $TITLE_GET_TARGETS,
     );
     @steps = list_select "Remove any uninstallation steps to skip.", @steps;
 
-    my $run_step = sub {
+    my $run_uninstall = sub {
         my ($name, $func) = @_;
         return unless grep /$name/, @steps;
-        header $name;
-        sleep 1;
+        emph "Running uninstall $name";
         &$func();
-        print "\n";
         sleep 1;
     };
 
-    &$run_step($TITLE_OH_MY_ZSH,        \&unin_oh_my_zsh);
-    &$run_step($TITLE_DOTFILES,         \&unin_dotfiles);
-    &$run_step($TITLE_HOMEBREW,         \&unin_homebrew);
-    &$run_step($TITLE_BREW_APPS,        \&unin_brew_apps);
-    # &$run_step($TITLE_GET_TARGETS,      \&unin_get_targets);
-    # &$run_step($TITLE_INSTALL_TARGETS,  \&unin_install_targets);
+    &$run_uninstall($TITLE_OH_MY_ZSH, \&unin_oh_my_zsh);
+    &$run_uninstall($TITLE_DOTFILES, \&unin_dotfiles);
+    &$run_uninstall($TITLE_HOMEBREW, \&unin_homebrew);
+    &$run_uninstall($TITLE_GET_TARGETS, \&unin_get_targets);
 }
 
 
@@ -568,9 +663,7 @@ sub unin_oh_my_zsh {
         return if confirm "Abort uninstallation of oh-my-zsh?";
     }
 
-    run "rm -rf $root" or die "Oh no!";
-
-    good affirmative;
+    run "rm -rf $root" or die;
 }
 
 
@@ -579,17 +672,15 @@ sub unin_dotfiles {
         // die "Dotfiles is not installed ⚠️";
     my @dotfiles = dot_files;
 
-    run "rm -rf $root" or die "Oh no!\n";
+    run "rm -rf $root" or die;
 
     if (@dotfiles) {
-        info "Found " . scalar @dotfiles . " tracked dotfiles.";
-        say for @dotfiles;
-        if (confirm "Do you want to delete these?") {
+        say "Dotfiles:";
+        say "  $_" for @dotfiles;
+        if (confirm "Do you want to delete your dotfiles?") {
             run "rm $_" for @dotfiles;
         }
     }
-
-    good affirmative;
 }
 
 
@@ -599,68 +690,155 @@ sub unin_homebrew {
     confirm yellow bold "Are you 100% absolutely definetly positively sure you want to uninstall Homebrew?"
         or return;
 
-    #TODO When I get a new mac ❗️
+    ... #TODO uninstall Homebrew (new mac)
 }
 
 
-sub unin_brew_apps {
-    my @apps;
-    confirm yellow "Are you completely sure you want to uninstall Homebrew applications?"
-        or return;
-
-    #TODO When I get a new mac ❗️
+sub unin_get_targets {
+    for (conf_get_files) {
+        my ($url, $path) = @{$_};
+        next unless -f $path;
+        run "rm $path" or die;
+    }
 }
 #}}}
 
+
+################################################################################
+# Update
+#
+# Functionality for updating resources Rogu knows about:
+#   - Rogu self
+#   - Homebrew (apps)
+#   - Dotfiles repo
+#   - Get files
+#{{{
+
+sub update {
+    my $filter = shift;
+
+    my $run_update = sub {
+        my ($name, $func) = @_;
+        if ($filter) {
+            return if $name !~ /$filter/i;
+        }
+        emph "Running update $name";
+        &$func();
+        sleep 1;
+    };
+
+    &$run_update($TITLE_ROGU, \&updt_rogu);
+    &$run_update($TITLE_COMMON, \&updt_common);
+    &$run_update($TITLE_DOTFILES, \&updt_dotfiles);
+    &$run_update($TITLE_HOMEBREW, \&updt_homebrew);
+    &$run_update($TITLE_GET_TARGETS, \&updt_get_targets);
+}
+
+
+sub updt_rogu {
+    is_valid_url($ROGU_URL) or die "Invalid script URL: $ROGU_URL ⛔️";
+    return unless is_different($ROGU_URL, $ROGU_PATH);
+    run "curl -sSL $ROGU_URL -o $ROGU_PATH" or die;
+}
+
+
+sub updt_common {
+    is_valid_url($COMMON_URL) or die "Invalid file URL: $COMMON_URL ⛔️";
+    return unless is_different($COMMON_URL, $COMMON_PATH);
+    run "curl -sSL $COMMON_URL -o $COMMON_PATH" or die;
+}
+
+
+sub updt_dotfiles {
+    is_valid_url $DOT_REPO or die "Invalid repo URL: $DOT_REPO ⛔️";
+    defined(dot_root) or die "Dotfiles not installed 🚫";
+
+    chdir() or die $!;
+    my $git = dot_git;
+    qx{ $git status --short } eq '' or die "Dotfiles are dirty ⛔️";
+    run "$git pull --rebase origin main" or die;
+}
+
+
+sub updt_homebrew {
+    cmd_exists "brew" or die "Homebrew isn't installed ⛔️";
+    run "brew update -q && brew upgrade -q" or die;
+}
+
+
+sub updt_get_targets {
+    for (conf_get_files) {
+        my ($url, $path, $mode) = @{$_};
+        is_valid_url($url) or die "Invalid URL: $url ⛔️";
+        next unless is_different($url, $path);
+        run "curl -sSL $url -o $path" or die;
+        chmod $mode, $path;
+    }
+}
+#}}}
 
 ################################################################################
 # Doctor
 #{{{
 
 sub doctor {
-    my $run_step = sub {
+    my $filter = shift;
+
+    my $run_doctor = sub {
         my ($name, $func) = @_;
+        if ($filter) {
+            return if $name !~ /$filter/i;
+        }
         header $name;
-        usleep 400_000;
         &$func();
-        print "\n";
-        usleep 1_600_000;
+        sleep 1;
     };
 
-    &$run_step($TITLE_OH_MY_ZSH,        \&doc_oh_my_zsh);
-    &$run_step($TITLE_DOTFILES,         \&doc_dotfiles);
-    &$run_step($TITLE_HOMEBREW,         \&doc_homebrew);
-    # &$run_step($TITLE_BREW_APPS,        \&doc_brew_apps);
-    &$run_step($TITLE_GET_TARGETS,      \&doc_get_targets);
-    &$run_step($TITLE_INSTALL_TARGETS,  \&doc_install_targets);
+    &$run_doctor($TITLE_ROGU, \&doc_rogu);
+    &$run_doctor($TITLE_COMMON, \&doc_common);
+    &$run_doctor($TITLE_OH_MY_ZSH, \&doc_oh_my_zsh);
+    &$run_doctor($TITLE_DOTFILES, \&doc_dotfiles);
+    &$run_doctor($TITLE_HOMEBREW, \&doc_homebrew);
+    &$run_doctor($TITLE_GET_TARGETS, \&doc_get_targets);
+    &$run_doctor($TITLE_INSTALL_TARGETS, \&doc_install_targets);
+}
+
+
+sub doc_rogu {
+    unless (is_valid_url $ROGU_URL) {
+        say red "Invalid script URL 🚫";
+    } elsif (is_different $ROGU_URL, $ROGU_PATH) {
+        say yellow "Rogu has pending updates ⚠️";
+        #updt_rogu() if $FIX;
+    } else {
+        say green "Everything is OK 👍";
+    }
+}
+
+
+sub doc_common {
+    unless (is_valid_url $COMMON_URL) {
+        say red "Invalid file URL 🚫";
+    } elsif (is_different $COMMON_URL, $COMMON_PATH) {
+        say yellow "Common.pm has pending updates ⚠️";
+    } else {
+        say green "Everything is OK 👍";
+    }
 }
 
 
 sub doc_oh_my_zsh {
-    #
-    # Is install script URL valid?
-    #
-    my $script_head = qx{ curl -sSL --head $OHMY_SCRIPT_URL };
-    if ($script_head =~ /HTTP.. 2\d\d/) {
-        say "Install script URL is valid.";
-    } else {
+    unless (is_valid_url $OHMY_SCRIPT_URL) {
         say red "Install script URL is invalid 🚫";
-        say "HEAD $script_head";
-        say $script_head;
     }
-    #
-    # Is oh-my-zsh installed?
-    #
+
     my $root = ohmy_root;
     unless (defined $root) {
         say red "Oh-my-zsh isn't installed 👎";
         return;
     }
     say green "Oh-my-zsh is installed 👍";
-    say "Location: $root";
-    #
-    # List custom plugins/themes.
-    #
+
     my @custom = ohmy_custom;
     if (@custom) {
         say "You have " . scalar @custom . " custom plugins/themes:";
@@ -670,92 +848,65 @@ sub doc_oh_my_zsh {
 
 
 sub doc_dotfiles {
-    #
-    # Is repo URL valid?
-    #
-    my $repo_head = qx{ curl -sSL --head $DOT_REPO };
-    if ($repo_head =~ /HTTP.. 2\d\d/) {
-        say "Dotfiles repo URL is valid.";
-    } else {
+    unless (is_valid_url $DOT_REPO) {
         say red "Dotfiles repo URL is invalid 🚫";
-        say "HEAD $DOT_REPO";
-        say $repo_head;
     }
-    #
-    # Is dotfiles installed?
-    #
+
     my $root = dot_root;
     unless (defined $root) {
         say red "Dotfiles isn't installed 👎";
         return;
     }
     say green "Dotfiles is installed 👍";
-    say "Location: $root";
-    #
-    # List dotfiles
-    #
-    my @dotfiles = dot_files;
-    say "Tracking " . scalar @dotfiles . " dotfiles.";
-    if (@dotfiles) {
-        say bold "Dotfiles";
-        say "  $_" for @dotfiles;
-    }
-    #
-    # Git status/update
-    #
+
     chdir() or die $!;
     my $git = dot_git;
     my $status = qx{ $git status --short };
-    if ($status eq '') {
-        say bold "Updating dotfiles repo";
-        system "$git pull";
-    } else {
-        say bold "Repo Status:";
+    my $diff = qx{ $git fetch -q origin main && $git diff HEAD...FETCH_HEAD };
+
+    if ($status ne '') {
+        say red "Dotfiles are dirty ⛔️";
         system "$git status";
-        say yellow "Cannot update dirty dotfiles ⛔️";
+    } elsif ($diff ne '') {
+        say yellow "Dotfiles has pending updates ⚠️";
     }
 }
 
 
 sub doc_homebrew {
-    #
-    # Is installed?
-    #
-    chomp(my $exec = qx{ command -v brew });
-    if ($exec eq '') {
+    unless (cmd_exists "brew") {
         say red "Homebrew isn't installed 👎";
         return;
     }
     say green "Homebrew is installed 👍";
-    say "Executable location: $exec";
-    #
-    # Homebrew's environment variable.
-    #
-    say bold "Variables";
-    chomp(my @vars = qx{ env });
-    say for grep /HOMEBREW/, @vars;
-    #
-    # Homebrew information
-    #
-    say bold "Information";
     system "brew info";
-    system "brew update";
+
+    my @apps = @{$::CONF{'Homebrew Apps'}{DATA}};
+    my @installed = grep /^\w+/, qx{ brew list -1 };
+    for (@apps) {
+        if (grep $_, @installed) {
+            say "Installed: $_";
+        } else {
+            say yellow "Not installed: $_";
+        }
+    }
 }
 
 
 sub doc_get_targets {
-    my %files = conf_get_files;
-    for (sort keys %files) {
-        if ( -f ) {
-            say green "Installed: $_";
+    my @files = conf_get_files;
+    for (conf_get_files) {
+        my ($url, $path, $mode) = @{$_};
+        if ( -f $path ) {
+            say "Installed: $path";
         } else {
-            say yellow "Not installed: $_"
+            say yellow "Not installed: $path"
         }
-    }
-    for (sort values %files) {
-        my $head = qx{ curl -sSL --head $_ };
-        unless ($head =~ /HTTP.. 2\d\d/) {
-            say yellow "Invalid URL: $_";
+
+        unless (is_valid_url $url) {
+            say red "Invalid URL: $url ⛔️";
+        } elsif (is_different $url, $path) {
+            say yellow "Update pending: $path ⚠️";
         }
     }
 }
@@ -766,11 +917,40 @@ sub doc_install_targets {
     for (@targets) {
         my $installed = conf_install_check $_;
         if ($installed) {
-            say green qq(Installed: [$_]);
+            say qq(Installed: [$_]);
         } else {
             say yellow qq(Not installed: [$_]);
         }
     }
+}
+#}}}
+
+
+################################################################################
+# Report
+#
+# Report about
+#{{{
+
+sub report {
+    ... #TODO Reporting
+
+    # Reports could be generated with format() ?
+
+    # Report content:
+    # - Location of stuff
+    # - Environment variables
+}
+
+
+sub rprt_homebrew {
+    chomp(my $exec = qx{ command -v brew });
+    say "Executable location: $exec";
+    say bold "Variables";
+    chomp(my @vars = qx{ env });
+    say for grep /HOMEBREW/, @vars;
+
+    ...
 }
 #}}}
 
@@ -785,32 +965,48 @@ sub doc_install_targets {
 # Main
 #{{{
 
-mkdir "$HOME/.cache", 0755 unless -d "$HOME/.cache";
-mkdir "$HOME/.config", 0755 unless -d "$HOME/.config";
-mkdir $CACHE_DIR, 0755 unless -d $CACHE_DIR;
-mkdir $CONF_DIR, 0755 unless -d $CONF_DIR;
-mkdir $TMP_DIR, 0755 unless -d $TMP_DIR;
+for ($CACHE_DIR, $CONF_DIR, $DATA_DIR, $TMP_DIR) {
+    system "mkdir -p $_" unless -d;
+    $? == 0 or die $!;
+}
 
+# DATA should be used to store data on disk, which
+# is needed for the functionality of Rogu.
 dbmopen(our %DATA, $APP_DATA_FILE, 0644);
 
+# CACHE should be used to cache data on disk, which needs
+# to be stored between runs, and improves performance.
+dbmopen(our %CACHE, $APP_CACHE_FILE, 0644);
+
+# RUN_CACHE should be used to cache data in memory, which
+# is needed to improve performance.
+our %RUN_CACHE;
+
+# CONF is the user configuration, and is treated
+# as read-only by Rogu.
 our %CONF;
-%CONF = conf_read $USER_CONF_FILE if -f $USER_CONF_FILE;
+if (-f $USER_CONF_FILE) {
+    %CONF = conf_read $USER_CONF_FILE;
+}
 
 # Rogu is only intended to be used interactively, so
 # don't bother with using both STDERR and STDOUT.
 # The output shouldn't be redirected anyway.
 set_log_out(*STDOUT);
 
-my $MAN = 0;
-my $HELP = 0;
-my $DEBUG = 0;
+sub usage {
+    print for (<DATA>);
+    exit 1;
+}
 
-GetOptions('help|h' => \$HELP, 'man' => \$MAN, 'debug|d', \$DEBUG)
-    or pod2usage(2);
-pod2usage( -exitval  => 0, -verbose  => 2)
-    if $MAN;
-pod2usage( -verbose  => 99, -sections => "SYNOPSIS|Commands|OPTIONS")
-    if $HELP || !(scalar @ARGV);
+my $HELP;
+GetOptions(
+    'help|h'  => \$HELP,
+    'debug|d' => \$DEBUG,
+    'all'     => \$ALL,
+    'fix'     => \$FIX,
+) or usage;
+usage if ($HELP || !(scalar @ARGV));
 
 my $CMD = shift;
 my $ARGS = join '", "', @ARGV;
@@ -822,67 +1018,44 @@ if ($DEBUG && @RES) {
 #}}}
 
 
-################################################################################
-# Help text
-#{{{
+__DATA__
+Usage: rogu [options] <command> [args...]
 
-__END__
-=head1 NAME
+Roger's weird offspring.
 
-rogu - Roger's weird offspring.
+Commands:
+    doctor [--fix] [FILTER]
+            Run an sanity check of everything Rogu knows
+            about on the system. This is mostly a passive
+            action, but not completely.
 
+            The optional FILTER allows filtering on which
+            sanity checks are performed, selecting on title.
 
-=head1 SYNOPSIS
+            When --fix is given Rogu tries to fix any issues
+            as soon as it is encountered, if he knows how.
 
-rogu [options] <command> [args...]
+    update
+            Update anything that needs updates.
 
+    install
+            Install everything needed to use the system (at
+            least everything Rogu knows about).
 
-=head1 Commands
+    uninstall
+            Uninstall most of the things that Rogu knows how
+            to handle.
 
-=over 8
+    report
+            Print reports of details about the system, as
+            Rogu knows it.
 
-=item B<config> <cmd>
+    config <cmd>
+            User configuration actions.
 
-User configuration actions.
-
-Subcommands: print, validate.
-
-=item B<doctor>
-
-Run an sanity check of everything Rogu knows about on the
-system. This is mostly a passive action, but not completely.
-
-=item B<install>
-
-Install everything needed to use the system (at least
-everything Rogu knows about).
-
-=item B<uninstall>
-
-Uninstall most of the things that Rogu knows how to handle.
-
-=back
+            Subcommands: print, validate.
 
 
-=head1 OPTIONS
-
-=over 8
-
-
-=item B<--help>
-
-Print a brief help message and exits.
-
-
-=item B<--man>
-
-Prints the manual page and exits.
-
-=back
-
-
-=head1 DESCRIPTION
-
-Bla bla bla... Rogu's awesome.
-
-=cut #}}}
+Options:
+    --help  Print a brief help message and exits.
+    --all   Always select all options by default.
