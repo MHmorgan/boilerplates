@@ -5,8 +5,6 @@ use utf8;
 use strict;
 use warnings;
 
-BEGIN { push @INC, "$ENV{HOME}/lib"; }
-
 use open qw(:std :utf8);
 use common;
 use Getopt::Long;
