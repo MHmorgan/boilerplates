@@ -427,6 +427,7 @@ sub conf_get_files {
 #
 sub conf_install_check {
     my ($name) = @_;
+    $name //= $_;
     unless (exists $::CONF{$name}) {
         die "Target [$name] not found";
     }
@@ -435,6 +436,22 @@ sub conf_install_check {
     my $check = $::CONF{$name}->{CHECK} // return 0;
     system $check;
     $? == 0 ? 1 : 0
+}
+
+
+# Run the code for the given Install target.
+#
+sub conf_install_install {
+    my $name = shift;
+    $name //= $_;
+    unless (exists $::CONF{$name}) {
+        die "Target [$name] not found.";
+    }
+    info "Running script for [$name]" if $DEBUG;
+    chdir $::CONF{$name}->{DIR} or die $!;
+    my @lines = @{$::CONF{$name}->{DATA}}
+        // die "No DATA for [$name]";
+    system(join "\n", @lines) == 0 or die;
 }
 #}}}
 
@@ -612,7 +629,9 @@ sub inst_get_targets {
 
 
 sub inst_install_targets {
-    for ()
+    for (grep /^Install/, keys %::CONF) {
+        conf_install_install unless conf_install_check;
+    }
 }
 #}}}
 
@@ -718,7 +737,7 @@ sub update {
         if ($filter) {
             return if $name !~ /$filter/i;
         }
-        emph "Running update $name" unless $QUIET
+        emph "Running update $name" unless $QUIET;
         &$func();
         sleep 1;
     };
