@@ -50,7 +50,6 @@ BEGIN {
     push @INC, "$ENV{HOME}/lib";
 }
 
-use Time::HiRes qw( usleep );
 use Getopt::Long;
 use Pod::Usage;
 use common;
@@ -107,9 +106,10 @@ our $ROGU_PATH   = "$HOME/bin/rogu";
 our $COMMON_URL  = "https://raw.githubusercontent.com/MHmorgan/boilerplates/main/common.pm";
 our $COMMON_PATH = "$HOME/lib/common.pm";
 
-our $DEBUG;
 our $ALL;
+our $DEBUG;
 our $FIX;
+our $QUIET;
 
 
 ################################################################################
@@ -137,25 +137,20 @@ sub user_can_sudo {
 sub list_select {
     my ($desc, @values) = @_;
     if ($ALL) {
+        info "Returning all values: " . join(' ', @values) if $DEBUG;
         return @values;
     }
-    #
-    # Fill temporary file with list.
-    #
+
     my $tmp_file = "/tmp/rogu/" . time;
-    open(my $fh, ">", $tmp_file) or die "opening tmp file: $!";
+    info "Temp select file: $tmp_file" if $DEBUG;
+    open(my $fh, ">", $tmp_file) or die $!;
     say $fh "# $desc";
     say $fh join("\n", @values);
     close $fh;
-    #
-    # Have the user edit the list.
-    #
+
     my $editor = $ENV{'EDITOR'} // $DEFAULT_EDITOR;
     system "$editor $tmp_file";
-    #
-    # Return the modified list.
-    #
-    open($fh, "<", $tmp_file) or die "opening tmp file: $!";
+    open($fh, "<", $tmp_file) or die $!;
     my @new_values;
     while (<$fh>) {
         chomp;
@@ -164,13 +159,15 @@ sub list_select {
     }
     close $fh;
     unlink $tmp_file;
+
+    info "Selected values: " . join(' ', @new_values) if $DEBUG;
     return @new_values;
 }
 
 
 sub run {
     my $cmd = shift;
-    say "[>] $cmd";
+    say "[>] $cmd" unless $QUIET;
     system $cmd;
     return $? == 0;
 }
@@ -180,17 +177,17 @@ sub fetch_url {
     my $url = shift;
     my %resp;
 
-    unless (exists $::RUN_CACHE{"GET $url"}) {
-        $::RUN_CACHE{"GET $url"}= qx{ curl -sSL $url }
-            or die "GET $url failed";
+    if (exists $::RUN_CACHE{$url}) {
+        info "Cache hit fetch $url" if $DEBUG;
+        return %{$::RUN_CACHE{$url}};
     }
-    $resp{body} = $::RUN_CACHE{"GET $url"};
 
-    unless (exists $::RUN_CACHE{"HEAD $url"}) {
-        $::RUN_CACHE{"HEAD $url"}= qx{ curl -sSLI $url }
-            or die "HEAD $url failed";
-    }
-    for (split "\n", $::RUN_CACHE{"HEAD $url"}) {
+    $resp{body} = qx{ curl -sSL $url }
+        or die "GET $url failed";
+
+    my @head = qx{ curl -sSLI $url }
+        or die "HEAD $url failed";
+    for (@head) {
         chomp;
         if (/HTTP\/\d \d{3}/) {
             $resp{status} = $_;
@@ -199,6 +196,7 @@ sub fetch_url {
         }
     }
 
+    $::RUN_CACHE{$url} = \%resp;
     return %resp;
 }
 
@@ -208,20 +206,22 @@ sub fetch_url {
 #
 sub get_file_cache {
     my $url = shift;
-    if (exists $::RUN_CACHE{$url}) {
-        return $::RUN_CACHE{$url};
+    my $key = "Cache $url";
+    if (exists $::RUN_CACHE{$key}) {
+        info "Cache hit cache $url" if $DEBUG;
+        return $::RUN_CACHE{$key};
     }
-    #TODO Use fetch_url
 
+    my %resp = fetch_url $url;
     my $name = $url =~ s/[\/:]+/_/rg;
-    chdir $CACHE_DIR or die $!;
-    system("curl -sSL $url > $name") == 0
-        or die "GET $url failed";
-
     my $path =  "$CACHE_DIR/$name";
-    -f $path or die "Caching $name failed";
 
-    $::RUN_CACHE{$url} = $path;
+    info "Caching $url @ $path" if $DEBUG;
+    open(my $fh, ">", $path) or die $!;
+    print $fh $resp{body};
+    close $fh;
+
+    $::RUN_CACHE{$key} = $path;
     return $path;
 }
 
@@ -230,12 +230,8 @@ sub get_file_cache {
 #
 sub is_valid_url {
     my $url = shift;
-    #TODO Use fetch_url
-    my $key = "HEAD $url";
-    unless (exists $::RUN_CACHE{$key}) {
-        $::RUN_CACHE{$key} = qx{ curl -sSL --head $url };
-    }
-    $::RUN_CACHE{$key} =~ /HTTP.. 2\d\d/ ? 1 : 0
+    my %resp = fetch_url $url;
+    $resp{status} =~ /HTTP.. 2\d\d/ ? 1 : 0
 }
 
 
@@ -245,7 +241,6 @@ sub is_valid_url {
 sub is_different {
     my ($url, $path) = @_;
     my $fcache = get_file_cache $url;
-    #TODO Check dato when checking differences
     qx{ diff -q $fcache $path };
     $? == 0 ? 0 : 1
 }
@@ -435,6 +430,7 @@ sub conf_install_check {
     unless (exists $::CONF{$name}) {
         die "Target [$name] not found";
     }
+    info "Running CHECK for [$name]" if $DEBUG;
     chdir $::CONF{$name}->{DIR} or return 0;
     my $check = $::CONF{$name}->{CHECK} // return 0;
     system $check;
@@ -536,7 +532,7 @@ sub install {
     my $run_install = sub {
         my ($name, $func) = @_;
         return unless grep /$name/, @steps;
-        emph "Running install $name";
+        emph "Running install $name" unless $QUIET;
         &$func();
         sleep 1;
     };
@@ -616,7 +612,7 @@ sub inst_get_targets {
 
 
 sub inst_install_targets {
-    ... #TODO install Install targets
+    for ()
 }
 #}}}
 
@@ -640,7 +636,7 @@ sub uninstall {
     my $run_uninstall = sub {
         my ($name, $func) = @_;
         return unless grep /$name/, @steps;
-        emph "Running uninstall $name";
+        emph "Running uninstall $name" unless $QUIET;
         &$func();
         sleep 1;
     };
@@ -722,7 +718,7 @@ sub update {
         if ($filter) {
             return if $name !~ /$filter/i;
         }
-        emph "Running update $name";
+        emph "Running update $name" unless $QUIET
         &$func();
         sleep 1;
     };
@@ -1003,6 +999,7 @@ my $HELP;
 GetOptions(
     'help|h'  => \$HELP,
     'debug|d' => \$DEBUG,
+    'quiet|q' => \$QUIET,
     'all'     => \$ALL,
     'fix'     => \$FIX,
 ) or usage;
@@ -1057,5 +1054,6 @@ Commands:
 
 
 Options:
-    --help  Print a brief help message and exits.
     --all   Always select all options by default.
+    --help  Print a brief help message and exits.
+    --quiet Print less output.
