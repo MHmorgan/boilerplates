@@ -31,9 +31,6 @@
 #   These types of commands should print information to the
 #   user.
 
-# TODO future updates:
-# - Add self update functionality
-
 use 5.30.0;
 use utf8;
 use warnings;
@@ -542,7 +539,9 @@ sub install {
     my @steps = (
         $TITLE_OH_MY_ZSH,
         $TITLE_DOTFILES,
+        # $TITLE_HOMEBREW,
         $TITLE_GET_TARGETS,
+        $TITLE_INSTALL_TARGETS,
     );
     @steps = list_select "Remove any installation steps to skip.", @steps;
 
@@ -648,6 +647,7 @@ sub uninstall {
     my @steps = (
         $TITLE_OH_MY_ZSH,
         $TITLE_DOTFILES,
+        # $TITLE_HOMEBREW,
         $TITLE_GET_TARGETS,
     );
     @steps = list_select "Remove any uninstallation steps to skip.", @steps;
@@ -824,7 +824,7 @@ sub doc_rogu {
         say red "Invalid script URL 🚫";
     } elsif (is_different $ROGU_URL, $ROGU_PATH) {
         say yellow "Rogu has pending updates ⚠️";
-        #updt_rogu() if $FIX;
+        updt_rogu() if $FIX;
     } else {
         say green "Everything is OK 👍";
     }
@@ -836,6 +836,7 @@ sub doc_common {
         say red "Invalid file URL 🚫";
     } elsif (is_different $COMMON_URL, $COMMON_PATH) {
         say yellow "Common.pm has pending updates ⚠️";
+        updt_common if $FIX;
     } else {
         say green "Everything is OK 👍";
     }
@@ -850,6 +851,7 @@ sub doc_oh_my_zsh {
     my $root = ohmy_root;
     unless (defined $root) {
         say red "Oh-my-zsh isn't installed 👎";
+        inst_oh_my_zsh if $FIX;
         return;
     }
     say green "Oh-my-zsh is installed 👍";
@@ -870,6 +872,7 @@ sub doc_dotfiles {
     my $root = dot_root;
     unless (defined $root) {
         say red "Dotfiles isn't installed 👎";
+        inst_dotfiles if $FIX;
         return;
     }
     say green "Dotfiles is installed 👍";
@@ -884,6 +887,7 @@ sub doc_dotfiles {
         system "$git status";
     } elsif ($diff ne '') {
         say yellow "Dotfiles has pending updates ⚠️";
+        updt_dotfiles if $FIX;
     }
 }
 
@@ -891,43 +895,54 @@ sub doc_dotfiles {
 sub doc_homebrew {
     unless (cmd_exists "brew") {
         say red "Homebrew isn't installed 👎";
+        #inst_homebrew if $FIX;
         return;
     }
     say green "Homebrew is installed 👍";
     system "brew info";
 
+    my $run_install;
     my @apps = @{$::CONF{'Homebrew Apps'}{DATA}};
     my @installed = grep /^\w+/, qx{ brew list -1 };
     for (@apps) {
-        if (grep $_, @installed) {
-            say "Installed: $_";
-        } else {
+        unless (grep $_, @installed) {
             say yellow "Not installed: $_";
+            $run_install = 1;
         }
     }
+    #inst_homebrew if $FIX && $run_install;
 }
 
 
 sub doc_get_targets {
+    my $install;
+    my $update;
     my @files = conf_get_files;
     for (conf_get_files) {
         my ($url, $path, $mode) = @{$_};
         if ( -f $path ) {
             say "Installed: $path";
         } else {
-            say yellow "Not installed: $path"
+            say yellow "Not installed: $path";
+            $install = 1;
         }
 
         unless (is_valid_url $url) {
             say red "Invalid URL: $url ⛔️";
         } elsif (is_different $url, $path) {
             say yellow "Update pending: $path ⚠️";
+            $update = 1;
         }
+    }
+    if ($FIX) {
+        inst_get_targets if $install;
+        updt_get_targets if $update && !$install;
     }
 }
 
 
 sub doc_install_targets {
+    my $install;
     my @targets = grep /^Install/, keys %::CONF;
     for (@targets) {
         my $installed = conf_install_check $_;
@@ -935,44 +950,11 @@ sub doc_install_targets {
             say qq(Installed: [$_]);
         } else {
             say yellow qq(Not installed: [$_]);
+            $install = 1;
         }
     }
+    inst_install_targets if $install && $FIX;
 }
-#}}}
-
-
-################################################################################
-# Report
-#
-# Report about
-#{{{
-
-sub report {
-    ... #TODO Reporting
-
-    # Reports could be generated with format() ?
-
-    # Report content:
-    # - Location of stuff
-    # - Environment variables
-}
-
-
-sub rprt_homebrew {
-    chomp(my $exec = qx{ command -v brew });
-    say "Executable location: $exec";
-    say bold "Variables";
-    chomp(my @vars = qx{ env });
-    say for grep /HOMEBREW/, @vars;
-
-    ...
-}
-#}}}
-
-
-################################################################################
-# Data
-#{{{
 #}}}
 
 
