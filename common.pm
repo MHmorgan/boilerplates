@@ -53,11 +53,11 @@ sub set_log_out { $LOG_OUT = shift }
 sub set_log_colors { $LOG_COLORS = shift }
 
 sub logsay {
-    @_ = colorstrip(@_) unless $LOG_COLORS;
+    @_ = colorstrip(@_) unless $LOG_COLORS && -t $LOG_OUT;
     say $LOG_OUT @_;
 }
 sub logprint {
-    @_ = colorstrip(@_) unless $LOG_COLORS;
+    @_ = colorstrip(@_) unless $LOG_COLORS && -t $LOG_OUT;
     print $LOG_OUT @_;
 }
 
