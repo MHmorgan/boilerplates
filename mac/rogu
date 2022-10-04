@@ -1033,20 +1033,26 @@ Commands:
             When --fix is given Rogu tries to fix any issues
             as soon as it is encountered, if he knows how.
 
-    update
+    update [FILTER]
             Update anything that needs updates.
+
+            The optional FILTER allows filtering which updates
+            are performed.
 
     install
             Install everything needed to use the system (at
             least everything Rogu knows about).
 
+            The user is guided through the installation and
+            allowed to select which installation steps to run.
+
     uninstall
             Uninstall most of the things that Rogu knows how
             to handle.
 
-    report
-            Print reports of details about the system, as
-            Rogu knows it.
+            The user is guided through the uninsntallation
+            and allowed to select which uninstallation
+            steps to run.
 
     config <cmd>
             User configuration actions.
