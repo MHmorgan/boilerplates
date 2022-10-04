@@ -46,23 +46,31 @@ sub underline { UNDERLINE . "@_" . RESET }
 #
 #{{{
 
+my $LOG_COLORS = 1;
 my $LOG_OUT = *STDERR;
 
 sub set_log_out { $LOG_OUT = shift }
+sub set_log_colors { $LOG_COLORS = shift }
 
-sub logsay   { say $LOG_OUT colorstrip(@_) }
-sub logprint { print $LOG_OUT colorstrip(@_) }
+sub logsay {
+    @_ = colorstrip(@_) unless $LOG_COLORS;
+    say $LOG_OUT @_;
+}
+sub logprint {
+    @_ = colorstrip(@_) unless $LOG_COLORS;
+    print $LOG_OUT @_;
+}
 
-sub err  { logsay "[!!] @_" }
-sub info { logsay "[⋅] @_" }
-sub emph { logsay "[*] @_" }
-sub good { logsay "[✓] @_" }
-sub bad  { logsay "[✗] @_" }
+sub err  { logsay BOLD . RED    . "[!!] @_" . RESET }
+sub info { logsay        FAINT  . "[⋅] @_"  . RESET }
+sub emph { logsay BOLD .          "[*] @_"  . RESET }
+sub good { logsay BOLD . GREEN  . "[✓] @_"  . RESET }
+sub bad  { logsay BOLD . RED    . "[✗] @_"  . RESET }
 
 $SIG{__DIE__}  = sub { logprint "[!!] @_"; exit 1 };
 $SIG{__WARN__} = sub { logprint "[!] @_" };
-
 #}}}
+
 
 ################################################################################
 # Printing
