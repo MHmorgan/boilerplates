@@ -1010,8 +1010,7 @@ my $CMD = shift;
 my $ARGS = join '", "', @ARGV;
 my @RES = eval "$CMD(\"$ARGS\")";
 if ($DEBUG && @RES) {
-    use Data::Dumper;
-    say Dumper(@RES);
+    say for (@RES);
 }
 #}}}
 
