@@ -67,8 +67,8 @@ sub emph { logsay BOLD .          "[*] @_"  . RESET }
 sub good { logsay BOLD . GREEN  . "[✓] @_"  . RESET }
 sub bad  { logsay BOLD . RED    . "[✗] @_"  . RESET }
 
-$SIG{__DIE__}  = sub { logprint "[!!] @_"; exit 1 };
-$SIG{__WARN__} = sub { logprint "[!] @_" };
+$SIG{__DIE__}  = sub { logprint BOLD . RED    . "[!!] @_" . RESET; exit 1 };
+$SIG{__WARN__} = sub { logprint BOLD . YELLOW . "[!] @_"  . RESET};
 #}}}
 
 
@@ -84,7 +84,7 @@ sub affirmative {
         "Delightful", "Exquisite", "Extraordinary", "Fabulous",
         "Fantastic", "Glorious", "Good", "Gracious", "Jazzed",
         "Marvelous", "Nice", "Right", "Sensational", "Sweet",
-		"Terrific", "Unique ",
+		"Terrific", "Unique ", "Amazeballs",
     );
     return $words[rand @words];
 }
