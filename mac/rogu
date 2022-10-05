@@ -128,40 +128,6 @@ sub user_can_sudo {
 }
 
 
-# Have a user select values of a list, returning
-# the modified list.
-#
-sub list_select {
-    my ($desc, @values) = @_;
-    if ($ALL) {
-        info "Returning all values: " . join(' ', @values) if $DEBUG;
-        return @values;
-    }
-
-    my $tmp_file = "/tmp/rogu/" . time;
-    info "Temp select file: $tmp_file" if $DEBUG;
-    open(my $fh, ">", $tmp_file) or die $!;
-    say $fh "# $desc";
-    say $fh join("\n", @values);
-    close $fh;
-
-    my $editor = $ENV{'EDITOR'} // $DEFAULT_EDITOR;
-    system "$editor $tmp_file";
-    open($fh, "<", $tmp_file) or die $!;
-    my @new_values;
-    while (<$fh>) {
-        chomp;
-        next if /^(#|\s*%)/;
-        push @new_values, $_;
-    }
-    close $fh;
-    unlink $tmp_file;
-
-    info "Selected values: " . join(' ', @new_values) if $DEBUG;
-    return @new_values;
-}
-
-
 sub run {
     my $cmd = shift;
     say "[>] $cmd" unless $QUIET;
@@ -543,7 +509,9 @@ sub install {
         $TITLE_GET_TARGETS,
         $TITLE_INSTALL_TARGETS,
     );
-    @steps = list_select "Remove any installation steps to skip.", @steps;
+    @steps = list_select "Remove any installation steps to skip.", @steps
+        unless $ALL;
+    info "Selected steps: " . join(' ', @steps) if $DEBUG;
 
     my $run_install = sub {
         my ($name, $func) = @_;
@@ -650,7 +618,9 @@ sub uninstall {
         # $TITLE_HOMEBREW,
         $TITLE_GET_TARGETS,
     );
-    @steps = list_select "Remove any uninstallation steps to skip.", @steps;
+    @steps = list_select "Remove any uninstallation steps to skip.", @steps
+        unless $ALL;
+    info "Selected steps: " . join(' ', @steps) if $DEBUG;
 
     my $run_uninstall = sub {
         my ($name, $func) = @_;

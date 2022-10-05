@@ -133,6 +133,35 @@ sub ok {
     $line =~ /n(o|ei?)?/i ? 0 : 1
 }
 
+
+# Have a user select values of a list, returning
+# the modified list.
+#
+sub list_select {
+    my ($desc, @values) = @_;
+
+    my $tmp_file = "/tmp/select-" . time;
+    open(my $fh, ">", $tmp_file) or die $!;
+    say $fh "# $desc";
+    say $fh join("\n", @values);
+    close $fh;
+
+    my $editor = $ENV{'EDITOR'} // 'vi';
+    system "$editor $tmp_file";
+    open($fh, "<", $tmp_file) or die $!;
+    my @new_values;
+    while (<$fh>) {
+        chomp;
+        next if /^(#|\s*$)/;
+        push @new_values, $_;
+    }
+    close $fh;
+    unlink $tmp_file;
+
+    return @new_values;
+}
+
+
 #}}}
 
 ################################################################################
