@@ -986,6 +986,12 @@ if ($DEBUG && @RES) {
 
 
 __DATA__
+ ___                
+| _ \___  __ _ _  _ 
+|   / _ \/ _` | || |
+|_|_\___/\__, |\_,_|
+         |___/      
+
 Usage: rogu [options] <command> [args...]
 
 Roger's weird offspring.

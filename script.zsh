@@ -1,5 +1,12 @@
 #!/usr/bin/env zsh
 # vim: expandtab:
+#
+#  _____           
+# |  ___|__   ___  
+# | |_ / _ \ / _ \ 
+# |  _| (_) | (_) |
+# |_|  \___/ \___/ 
+#                  
 
 source ~/lib/common.zsh
 

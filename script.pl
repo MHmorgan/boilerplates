@@ -1,4 +1,11 @@
 #!/usr/bin/env perl
+#
+#  _____           
+# |  ___|__   ___  
+# | |_ / _ \ / _ \ 
+# |  _| (_) | (_) |
+# |_|  \___/ \___/ 
+#                  
 
 use v5.30.0;
 use utf8;
@@ -37,6 +44,11 @@ say "Suddenly the cave collapses!" if $VERBOSE;
 
 
 __DATA__
+ ___         
+| __|__  ___ 
+| _/ _ \/ _ \
+|_|\___/\___/
+             
 Usage: foo [-v] [-h]
 
 Do something cool!
