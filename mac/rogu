@@ -983,8 +983,17 @@ my @COMMANDS = qw(
 );
 
 if ($COMPLETION) {
-    print qq(compdef '_arguments ":subcommands:(@COMMANDS)"' rogu);
-    exit 0;
+    # See:
+    #    manpage zshcompsys
+    #    https://github.com/zsh-users/zsh-completions/blob/master/zsh-completions-howto.org
+    my @specs = (
+        qq("--help"),
+        qq("--all"),
+        qq("--quiet"),
+        qq(":subcommands:(@COMMANDS)"),
+    );
+    print qq(compdef '_arguments @specs' rogu);
+    exit;
 }
 
 if ($HELP || !(scalar @ARGV)) {

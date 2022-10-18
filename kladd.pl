@@ -67,8 +67,20 @@ chdir $DIR or die $!;
 exec "ls -1 | sort" if $LIST;
 
 if ($COMPLETION) {
+    # See:
+    #    manpage zshcompsys
+    #    https://github.com/zsh-users/zsh-completions/blob/master/zsh-completions-howto.org
     my @files = qx{ ls -1 };
-    print qq(compdef '_arguments ":file:(@files)"' kladd);
+    my @specs = (
+        qq("--branch"),
+        qq("--dir"),
+        qq("--dump"),
+        qq("--help"),
+        qq("--ls"),
+        qq("--rm"),
+        qq(":file:(@files)"),
+    );
+    print qq(compdef '_arguments @specs' kladd);
     exit;
 }
 
@@ -97,3 +109,4 @@ Options:
     --branch -b
             Make the kladd unique for the current git branch.
     --dir   Make the kladd unique for the current directory.
+    --help  Print this help message.
