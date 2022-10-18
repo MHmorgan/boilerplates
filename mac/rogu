@@ -961,23 +961,44 @@ if (-f $USER_CONF_FILE) {
 # The output shouldn't be redirected anyway.
 set_log_out(*STDOUT);
 
-sub usage {
+my $HELP;
+my $COMPLETION;
+GetOptions(
+    'help|h'     => \$HELP,
+    'debug|d'    => \$DEBUG,
+    'quiet|q'    => \$QUIET,
+    'all'        => \$ALL,
+    'fix'        => \$FIX,
+    'completion' => \$COMPLETION,
+) or $HELP=1;
+
+# The normal valid commands, which can be run outside
+# of debug mode.
+my @COMMANDS = qw(
+    doctor
+    update
+    install
+    uninstall
+    config
+);
+
+if ($COMPLETION) {
+    print qq(compdef '_arguments ":subcommands:(@COMMANDS)"' rogu);
+    exit 0;
+}
+
+if ($HELP || !(scalar @ARGV)) {
     print for (<DATA>);
     exit 1;
 }
 
-my $HELP;
-GetOptions(
-    'help|h'  => \$HELP,
-    'debug|d' => \$DEBUG,
-    'quiet|q' => \$QUIET,
-    'all'     => \$ALL,
-    'fix'     => \$FIX,
-) or usage;
-usage if ($HELP || !(scalar @ARGV));
-
 my $CMD = shift;
 my $ARGS = join '", "', @ARGV;
+
+unless ($DEBUG || grep(/$CMD/, @COMMANDS)) {
+    die "Unknown subcommand: $CMD";
+}
+
 my @RES = eval "$CMD(\"$ARGS\")";
 if ($DEBUG && @RES) {
     say for (@RES);
@@ -1036,6 +1057,7 @@ Commands:
 
 
 Options:
-    --all   Always select all options by default.
-    --help  Print a brief help message and exits.
-    --quiet Print less output.
+    --all        Always select all options by default.
+    --help       Print a brief help message and exits.
+    --quiet      Print less output.
+    --completion Print zsh code for shell completion.
