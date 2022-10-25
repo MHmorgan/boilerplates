@@ -1,35 +1,13 @@
 #!/usr/bin/env python3.10
 
-import sys
-
 import click
-from click import echo, secho
+from click import echo
 import requests
+
+from common import bail
 
 URL_BASE = 'https://mhmorgan.github.io/boilerplates/'
 URL_FILELIST = URL_BASE + 'meta/filelist.txt'
-
-
-def info(msg, /, *, prefix='[*]', **kwargs):
-    kwargs.setdefault('err', True)
-    secho(f'{prefix} {msg}', **kwargs)
-
-
-def warn(msg, /, *, prefix='[!]', **kwargs):
-    kwargs.setdefault('fg', 'yellow')
-    kwargs.setdefault('err', True)
-    secho(f'{prefix} {msg}', **kwargs)
-
-
-def err(msg, /, *, prefix='[!!]', **kwargs):
-    kwargs.setdefault('fg', 'red')
-    kwargs.setdefault('err', True)
-    secho(f'{prefix} {msg}', **kwargs)
-
-
-def bail(msg, /, **kwargs):
-    err(msg, **kwargs)
-    sys.exit(1)
 
 
 def fetch_filelist() -> list[str]:
